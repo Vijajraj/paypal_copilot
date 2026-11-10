@@ -1,12 +1,14 @@
+import os
 import random
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional
 from ..models import CarrierProof
 
 try:
-    from ..secrets import KERNEL_API_KEY
+    from .. import secrets
+    KERNEL_API_KEY = getattr(secrets, "KERNEL_API_KEY", "") or os.environ.get("KERNEL_API_KEY", "")
 except ImportError:
-    KERNEL_API_KEY = ""
+    KERNEL_API_KEY = os.environ.get("KERNEL_API_KEY", "")
 
 class CarrierKernelService:
     """

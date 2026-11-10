@@ -4,7 +4,9 @@ import { initialMockDisputes } from './initialMockData.js';
 const STORAGE_KEY_DISPUTES = 'paypal_copilot_disputes_v1';
 const STORAGE_KEY_AUDIT = 'paypal_copilot_audit_v1';
 const STORAGE_KEY_RESTOCK = 'paypal_copilot_restock_v1';
-const API_BASE = ''; // uses Vite proxy
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  : '';
 
 const defaultRestockItems = [
   {

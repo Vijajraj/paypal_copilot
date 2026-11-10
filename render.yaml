@@ -1,0 +1,78 @@
+# ==============================================================================
+# Render Blueprint Configuration (render.yaml)
+# Project: PayPal AI Dispute Copilot
+# Docs: https://render.com/docs/blueprint-spec
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. FastAPI Python Backend Service
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: paypal-copilot-backend
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install --upgrade pip && pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DEMO_MODE
+        value: "false"
+      - key: USE_ELASTIC
+        value: "true"
+      - key: AI_PROVIDER
+        value: "groq"
+      - key: AI_MODEL
+        value: "openai/gpt-oss-120b"
+      - key: PAYPAL_BASE_URL
+        value: "https://api-m.sandbox.paypal.com"
+      - key: APPROVAL_SECRET
+        generateValue: true
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ELASTICSEARCH_URL
+        sync: false
+      - key: ELASTICSEARCH_API_KEY
+        sync: false
+      - key: KERNEL_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+  # ----------------------------------------------------------------------------
+  # 2. React Vite Frontend (Static Site on Render)
+  # ----------------------------------------------------------------------------
+  - type: static
+    name: paypal-copilot-frontend
+    plan: free
+    region: oregon
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: paypal-copilot-backend
+          property: host

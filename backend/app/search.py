@@ -4,10 +4,12 @@ from typing import List, Dict, Any
 from .config import USE_ELASTIC, ELASTIC_INDEX, SEED_FILE, SIMILAR_CASES_TOP_K
 
 try:
-    from .secrets import ELASTIC_URL, ELASTIC_API_KEY
+    from . import secrets
+    ELASTIC_URL = getattr(secrets, "ELASTIC_URL", "") or os.environ.get("ELASTICSEARCH_URL", "") or os.environ.get("ELASTIC_URL", "")
+    ELASTIC_API_KEY = getattr(secrets, "ELASTIC_API_KEY", "") or os.environ.get("ELASTICSEARCH_API_KEY", "") or os.environ.get("ELASTIC_API_KEY", "")
 except ImportError:
-    ELASTIC_URL = ""
-    ELASTIC_API_KEY = ""
+    ELASTIC_URL = os.environ.get("ELASTICSEARCH_URL", "") or os.environ.get("ELASTIC_URL", "")
+    ELASTIC_API_KEY = os.environ.get("ELASTICSEARCH_API_KEY", "") or os.environ.get("ELASTIC_API_KEY", "")
 
 class DisputeSearchService:
     def __init__(self):

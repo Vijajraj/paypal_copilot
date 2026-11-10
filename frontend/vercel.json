@@ -1,0 +1,53 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/disputes/:path*",
+      "destination": "https://paypal-copilot-backend.onrender.com/disputes/:path*"
+    },
+    {
+      "source": "/sync",
+      "destination": "https://paypal-copilot-backend.onrender.com/sync"
+    },
+    {
+      "source": "/timeline",
+      "destination": "https://paypal-copilot-backend.onrender.com/timeline"
+    },
+    {
+      "source": "/audit",
+      "destination": "https://paypal-copilot-backend.onrender.com/audit"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://paypal-copilot-backend.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}

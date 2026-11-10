@@ -18,10 +18,13 @@ from .webhooks import router as webhook_router
 from .routes.restock import router as restock_router
 from .routes.zapier import router as zapier_router
 
+import os
+
 try:
-    from .secrets import APPROVAL_SECRET
+    from . import secrets
+    APPROVAL_SECRET = getattr(secrets, "APPROVAL_SECRET", "") or os.environ.get("APPROVAL_SECRET", "")
 except ImportError:
-    APPROVAL_SECRET = ""
+    APPROVAL_SECRET = os.environ.get("APPROVAL_SECRET", "")
 
 app = FastAPI(
     title="PayPal AI Dispute Copilot API (Person A)",

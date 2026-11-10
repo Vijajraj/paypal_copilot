@@ -1,3 +1,4 @@
+import os
 import json
 from typing import Dict, Any, List, Optional
 from .config import (
@@ -7,9 +8,10 @@ from .search import search_service
 from .models import DisputeContract, ProofItem, EvidenceDraft
 
 try:
-    from .secrets import AI_API_KEY
+    from . import secrets
+    AI_API_KEY = getattr(secrets, "AI_API_KEY", "") or os.environ.get("AI_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
 except ImportError:
-    AI_API_KEY = ""
+    AI_API_KEY = os.environ.get("AI_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
 
 AGENT_SYSTEM_PROMPT = """You help a small online seller respond to a PayPal dispute.
 You will receive the dispute, the order, and similar past cases with outcomes.

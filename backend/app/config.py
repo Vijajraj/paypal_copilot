@@ -17,27 +17,27 @@ PAYPAL_WEBHOOK_EVENTS = [
 ]
 
 # ---------- Hosting ----------
-PUBLIC_BASE_URL = "http://127.0.0.1:8000"            # your deployed backend URL, used for the webhook
-FRONTEND_ORIGIN = "http://localhost:5173"            # Person B's frontend URL, for CORS
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://127.0.0.1:8000")
+FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
 WEBHOOK_PATH = "/webhooks/paypal"
 
 # ---------- AI ----------
-AI_PROVIDER = "groq"                                 # e.g. a free-tier provider. Verify current limits
-AI_MODEL = "openai/gpt-oss-120b"                     # pick from that provider's current free models
-AI_MAX_RETRIES = 3
-AI_TIMEOUT_SECONDS = 25                              # keep calls short, especially on serverless hosts
-CACHE_AGENT_OUTPUTS = True                           # reuse a draft per dispute to save free-tier quota
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "groq")
+AI_MODEL = os.environ.get("AI_MODEL", "openai/gpt-oss-120b")
+AI_MAX_RETRIES = int(os.environ.get("AI_MAX_RETRIES", "3"))
+AI_TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", "25"))
+CACHE_AGENT_OUTPUTS = os.environ.get("CACHE_AGENT_OUTPUTS", "true").lower() in ("true", "1")
 
 # ---------- Search ----------
-USE_ELASTIC = True                                   # Elastic Cloud enabled
-ELASTIC_INDEX = "past_disputes"
+USE_ELASTIC = os.environ.get("USE_ELASTIC", "true").lower() in ("true", "1")
+ELASTIC_INDEX = os.environ.get("ELASTIC_INDEX", "past_disputes")
 SEED_FILE = str(BASE_DIR / "seed" / "past_disputes.json")
-SIMILAR_CASES_TOP_K = 5
+SIMILAR_CASES_TOP_K = int(os.environ.get("SIMILAR_CASES_TOP_K", "5"))
 
 # ---------- App behavior ----------
-DEMO_MODE = False                                    # False: Live PayPal Sandbox and live AI/Elastic
-SYNC_PAGE_SIZE = 20
-DATABASE_URL = "sqlite:///./local.db"                # local only. On a host with ephemeral disk, use a hosted Postgres URL (TODO)
+DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() in ("true", "1")
+SYNC_PAGE_SIZE = int(os.environ.get("SYNC_PAGE_SIZE", "20"))
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./local.db")
 
 
 # ---------- Channel3 & Zapier (Extensions) ----------

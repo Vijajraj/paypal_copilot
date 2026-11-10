@@ -1,3 +1,4 @@
+import os
 import time
 import httpx
 from typing import Dict, Any, Optional, List
@@ -7,11 +8,14 @@ from .config import (
 )
 
 try:
-    from .secrets import PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID
+    from . import secrets
+    PAYPAL_CLIENT_ID = getattr(secrets, "PAYPAL_CLIENT_ID", "") or os.environ.get("PAYPAL_CLIENT_ID", "")
+    PAYPAL_CLIENT_SECRET = getattr(secrets, "PAYPAL_CLIENT_SECRET", "") or os.environ.get("PAYPAL_CLIENT_SECRET", "")
+    PAYPAL_WEBHOOK_ID = getattr(secrets, "PAYPAL_WEBHOOK_ID", "") or os.environ.get("PAYPAL_WEBHOOK_ID", "")
 except ImportError:
-    PAYPAL_CLIENT_ID = ""
-    PAYPAL_CLIENT_SECRET = ""
-    PAYPAL_WEBHOOK_ID = ""
+    PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "")
+    PAYPAL_CLIENT_SECRET = os.environ.get("PAYPAL_CLIENT_SECRET", "")
+    PAYPAL_WEBHOOK_ID = os.environ.get("PAYPAL_WEBHOOK_ID", "")
 
 class PayPalClient:
     """

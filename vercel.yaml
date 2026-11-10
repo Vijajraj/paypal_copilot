@@ -1,0 +1,42 @@
+# ==============================================================================
+# Vercel Configuration (vercel.yaml)
+# Project: PayPal AI Dispute Copilot Frontend
+# Docs: https://vercel.com/docs/projects/project-configuration
+# ==============================================================================
+
+version: 2
+framework: vite
+rootDirectory: frontend
+buildCommand: npm run build
+outputDirectory: dist
+installCommand: npm install
+
+# Environment variables to configure in Vercel Project Settings:
+# - VITE_API_URL: URL of your deployed Render backend (e.g. https://paypal-copilot-backend.onrender.com)
+# - APPROVAL_SECRET: Authorization token for merchant approval gate
+
+rewrites:
+  # Proxy API requests to your deployed Render backend
+  - source: /disputes/:path*
+    destination: https://paypal-copilot-backend.onrender.com/disputes/:path*
+  - source: /sync
+    destination: https://paypal-copilot-backend.onrender.com/sync
+  - source: /timeline
+    destination: https://paypal-copilot-backend.onrender.com/timeline
+  - source: /audit
+    destination: https://paypal-copilot-backend.onrender.com/audit
+  - source: /api/:path*
+    destination: https://paypal-copilot-backend.onrender.com/api/:path*
+  # Single Page Application (SPA) routing fallback
+  - source: /(.*)
+    destination: /index.html
+
+headers:
+  - source: /(.*)
+    headers:
+      - key: X-Content-Type-Options
+        value: nosniff
+      - key: X-Frame-Options
+        value: DENY
+      - key: X-XSS-Protection
+        value: 1; mode=block
