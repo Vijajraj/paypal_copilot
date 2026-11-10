@@ -10,7 +10,7 @@ export default defineConfig({
       '/sync': 'http://127.0.0.1:8000',
       '/timeline': 'http://127.0.0.1:8000',
       '/audit': 'http://127.0.0.1:8000',
-      '/api': 'http://127.0.0.1:8000'
+      '/api/': 'http://127.0.0.1:8000'
     }
   }
 });
