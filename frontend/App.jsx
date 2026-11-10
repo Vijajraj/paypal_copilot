@@ -5,7 +5,6 @@ import DetailPanel from './DetailPanel.jsx';
 import DeadlineTimeline from './DeadlineTimeline.jsx';
 import RestockChannel3 from './RestockChannel3.jsx';
 import AuditTrailModal from './AuditTrailModal.jsx';
-import ZapierSettingsModal from './ZapierSettingsModal.jsx';
 import SimulateDisputeModal from './SimulateDisputeModal.jsx';
 import { initialMockDisputes } from './initialMockData.js';
 import { api } from './apiClient.js';
@@ -16,11 +15,11 @@ export default function App() {
   const [selectedDispute, setSelectedDispute] = useState(initialMockDisputes[0]);
   const [isMockMode, setIsMockMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Modals
   const [showSimulateModal, setShowSimulateModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
-  const [showZapierModal, setShowZapierModal] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   // Fetch disputes on initial load or mode change
@@ -48,7 +47,7 @@ export default function App() {
         setDisputes(res.disputes);
         setSelectedDispute(prev => {
           if (!prev) return res.disputes[0];
-          const matched = res.disputes.find(d => d.dispute_id === prev.dispute_id);
+          const matched = res.disputes.find(d => (d.dispute_id === prev.dispute_id || d.id === prev.id));
           return matched || res.disputes[0];
         });
       }
@@ -61,15 +60,35 @@ export default function App() {
     }
   };
 
+  // Sync fresh disputes from PayPal Sandbox
+  const handleSyncPayPal = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await api.syncDisputes();
+      if (res.disputes && res.disputes.length > 0) {
+        setDisputes(res.disputes);
+        setSelectedDispute(res.disputes[0]);
+        showToast(`Synchronized ${res.disputes.length} active disputes from PayPal Sandbox!`);
+      } else {
+        showToast(`PayPal Sandbox checked: disputes are up to date.`);
+      }
+    } catch (err) {
+      showToast(`Sync failed: ${err.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Handle 1-Click Human Approval
   const handleApprove = async (disputeId, approverName) => {
     try {
       if (isMockMode) {
         setDisputes(prev => prev.map(d => {
-          if (d.dispute_id === disputeId) {
+          if (d.dispute_id === disputeId || d.id === disputeId) {
             return {
               ...d,
               status: 'UNDER_REVIEW',
+              approval_state: 'submitted',
               seller_approval: {
                 approved: true,
                 approved_at: new Date().toISOString(),
@@ -83,6 +102,7 @@ export default function App() {
         setSelectedDispute(prev => ({
           ...prev,
           status: 'UNDER_REVIEW',
+          approval_state: 'submitted',
           seller_approval: {
             approved: true,
             approved_at: new Date().toISOString(),
@@ -96,7 +116,7 @@ export default function App() {
 
       const res = await api.approveDispute(disputeId, approverName);
       if (res.dispute) {
-        setDisputes(prev => prev.map(d => d.dispute_id === disputeId ? res.dispute : d));
+        setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? res.dispute : d));
         setSelectedDispute(res.dispute);
         showToast(`Dispute ${disputeId} approved & submitted with audit hash ${res.audit?.hash?.substring(0, 8)}...`);
       }
@@ -110,10 +130,11 @@ export default function App() {
     try {
       if (isMockMode) {
         setDisputes(prev => prev.map(d => {
-          if (d.dispute_id === disputeId) {
+          if (d.dispute_id === disputeId || d.id === disputeId) {
             return {
               ...d,
               status: 'RESOLVED',
+              approval_state: 'rejected',
               seller_approval: {
                 approved: false,
                 conceded: true,
@@ -128,6 +149,7 @@ export default function App() {
         setSelectedDispute(prev => ({
           ...prev,
           status: 'RESOLVED',
+          approval_state: 'rejected',
           seller_approval: {
             approved: false,
             conceded: true,
@@ -142,7 +164,7 @@ export default function App() {
 
       const res = await api.rejectDispute(disputeId, reason);
       if (res.dispute) {
-        setDisputes(prev => prev.map(d => d.dispute_id === disputeId ? res.dispute : d));
+        setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? res.dispute : d));
         setSelectedDispute(res.dispute);
         showToast(`Dispute ${disputeId} claim conceded.`);
       }
@@ -154,14 +176,29 @@ export default function App() {
   // Handle Evidence Save
   const handleSaveEvidence = async (disputeId, text) => {
     if (isMockMode) {
-      setDisputes(prev => prev.map(d => d.dispute_id === disputeId ? { ...d, ai_drafted_evidence: text } : d));
+      setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? { ...d, ai_drafted_evidence: text } : d));
       setSelectedDispute(prev => ({ ...prev, ai_drafted_evidence: text }));
       return;
     }
     const res = await api.updateEvidence(disputeId, text);
     if (res.dispute) {
-      setDisputes(prev => prev.map(d => d.dispute_id === disputeId ? res.dispute : d));
+      setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? res.dispute : d));
       setSelectedDispute(res.dispute);
+    }
+  };
+
+  // Handle Redraft Evidence with Groq AI
+  const handleRedraft = async (disputeId, merchantNotes = '') => {
+    try {
+      showToast('Analyzing Elastic precedents & generating fresh draft with Groq AI...');
+      const res = await api.redraftEvidence(disputeId, merchantNotes);
+      if (res.dispute) {
+        setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? res.dispute : d));
+        setSelectedDispute(res.dispute);
+        showToast('Fresh Groq AI evidence response generated!');
+      }
+    } catch (err) {
+      alert('Redraft error: ' + err.message);
     }
   };
 
@@ -170,10 +207,10 @@ export default function App() {
     setDisputes(prev => [newDispute, ...prev]);
     setSelectedDispute(newDispute);
     setActiveTab('disputes');
-    showToast(`Incoming PayPal dispute ${newDispute.dispute_id} analyzed! Win score: ${newDispute.win_score}%`);
+    showToast(`Incoming PayPal dispute ${newDispute.dispute_id || newDispute.id} analyzed! Win score: ${newDispute.win_score}%`);
   };
 
-  const pendingCount = disputes.filter(d => d.status === 'WAITING_FOR_SELLER_RESPONSE').length;
+  const pendingCount = disputes.filter(d => (d.status === 'WAITING_FOR_SELLER_RESPONSE' || d.approval_state === 'pending')).length;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f5f7fa' }}>
@@ -184,7 +221,8 @@ export default function App() {
         pendingCount={pendingCount}
         onOpenSimulate={() => setShowSimulateModal(true)}
         onOpenAudit={() => setShowAuditModal(true)}
-        onOpenZapier={() => setShowZapierModal(true)}
+        onSync={handleSyncPayPal}
+        isSyncing={isSyncing}
         isMockMode={isMockMode}
         setIsMockMode={setIsMockMode}
       />
@@ -230,6 +268,7 @@ export default function App() {
                 onApprove={handleApprove}
                 onReject={handleReject}
                 onSaveEvidence={handleSaveEvidence}
+                onRedraft={handleRedraft}
                 onClose={() => setSelectedDispute(null)}
               />
             )}
@@ -261,14 +300,8 @@ export default function App() {
 
       {showAuditModal && (
         <AuditTrailModal
-          disputeId={selectedDispute?.dispute_id}
+          disputeId={selectedDispute?.dispute_id || selectedDispute?.id}
           onClose={() => setShowAuditModal(false)}
-        />
-      )}
-
-      {showZapierModal && (
-        <ZapierSettingsModal
-          onClose={() => setShowZapierModal(false)}
         />
       )}
 
@@ -290,7 +323,7 @@ export default function App() {
           </div>
 
           <div>
-            © 2026 PayPal AI Dispute Copilot • Powered by PayPal Sandbox, AG Grid, Bryntum, Zapier, Elastic, KERNEL, Channel3 & Render
+            © 2026 PayPal AI Dispute Copilot • Powered by PayPal Sandbox REST API, Groq (openai/gpt-oss-120b), Elastic Cloud, KERNEL & AG Grid
           </div>
         </div>
       </footer>

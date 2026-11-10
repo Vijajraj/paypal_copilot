@@ -105,6 +105,9 @@ class EvidenceUpdateRequest(BaseModel):
     text: Optional[str] = None
     approver_id: Optional[str] = "seller_merchant_primary"
 
+class RedraftRequest(BaseModel):
+    merchant_notes: Optional[str] = None
+
 class ApproveRequest(BaseModel):
     approver_id: Optional[str] = "Authorized Seller Representative"
     approval_secret: Optional[str] = None

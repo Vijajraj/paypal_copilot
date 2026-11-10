@@ -35,10 +35,10 @@ class DisputeCopilotAgent:
     def __init__(self):
         self.system_prompt = AGENT_SYSTEM_PROMPT
 
-    def run(self, dispute_data: Dict[str, Any], order_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, dispute_data: Dict[str, Any], order_data: Dict[str, Any], bypass_cache: bool = False, merchant_notes: Optional[str] = None) -> Dict[str, Any]:
         dispute_id = dispute_data.get("id") or dispute_data.get("dispute_id", "UNKNOWN")
 
-        if CACHE_AGENT_OUTPUTS and dispute_id in _AGENT_CACHE:
+        if not bypass_cache and CACHE_AGENT_OUTPUTS and dispute_id in _AGENT_CACHE:
             return _AGENT_CACHE[dispute_id]
 
         reason = dispute_data.get("reason", "ITEM_NOT_RECEIVED")
@@ -56,7 +56,7 @@ class DisputeCopilotAgent:
         # 3. Draft evidence text
         evidence_text = None
         if AI_API_KEY and AI_API_KEY.strip():
-            evidence_text = self._call_llm_agent(dispute_data, order_data, similar_cases, proofs)
+            evidence_text = self._call_llm_agent(dispute_data, order_data, similar_cases, proofs, merchant_notes)
 
         if not evidence_text:
             evidence_text = self._deterministic_draft(dispute_data, order_data, proofs, win_score)
@@ -162,17 +162,19 @@ class DisputeCopilotAgent:
         dispute_data: Dict[str, Any],
         order_data: Dict[str, Any],
         similar_cases: List[Dict[str, Any]],
-        proofs: List[Dict[str, Any]]
+        proofs: List[Dict[str, Any]],
+        merchant_notes: Optional[str] = None
     ) -> Optional[str]:
         """Optional call to Groq / OpenAI LLM using free tier."""
         try:
             from groq import Groq
             client = Groq(api_key=AI_API_KEY)
+            notes_section = f"\nMerchant Specific Clarifications: {merchant_notes}" if merchant_notes else ""
             user_prompt = f"""
 Dispute: {json.dumps(dispute_data)}
 Order: {json.dumps(order_data)}
 Similar Past Cases: {json.dumps(similar_cases[:3])}
-Proofs: {json.dumps(proofs)}
+Proofs: {json.dumps(proofs)}{notes_section}
 
 Draft the factual evidence response following the system prompt guidelines.
 """

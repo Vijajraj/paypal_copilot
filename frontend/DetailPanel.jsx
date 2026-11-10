@@ -25,6 +25,7 @@ export default function DetailPanel({
   onApprove,
   onReject,
   onSaveEvidence,
+  onRedraft,
   onClose
 }) {
   if (!dispute) return null;
@@ -405,14 +406,25 @@ export default function DetailPanel({
                     Save Changes
                   </button>
                 ) : (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="btn btn-paypal-outline"
-                    style={{ padding: '5px 14px', fontSize: '0.78rem' }}
-                  >
-                    <Edit3 size={13} />
-                    Edit Draft
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => onRedraft && onRedraft(dispute.dispute_id || dispute.id)}
+                      className="btn btn-paypal-outline"
+                      style={{ padding: '5px 12px', fontSize: '0.76rem', color: '#1d4ed8', borderColor: '#bfdbfe', background: '#eff6ff' }}
+                      title="Regenerate defense statement using Groq AI (openai/gpt-oss-120b) and Elastic precedents"
+                    >
+                      <RotateCcw size={12} />
+                      Regenerate (Groq AI)
+                    </button>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="btn btn-paypal-outline"
+                      style={{ padding: '5px 14px', fontSize: '0.78rem' }}
+                    >
+                      <Edit3 size={13} />
+                      Edit Draft
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -511,7 +523,7 @@ export default function DetailPanel({
                 </div>
                 <div style={{ color: '#047857', fontSize: '0.78rem', marginTop: '4px' }}>
                   Dispatched to PayPal Sandbox API on {new Date(dispute.seller_approval?.approved_at).toLocaleString()}.
-                  Recorded in cryptographic SHA-256 ledger and Zapier Google Sheets audit log.
+                  Recorded in cryptographic SHA-256 ledger with immutable proof.
                 </div>
               </div>
             ) : (

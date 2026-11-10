@@ -23,19 +23,19 @@ WEBHOOK_PATH = "/webhooks/paypal"
 
 # ---------- AI ----------
 AI_PROVIDER = "groq"                                 # e.g. a free-tier provider. Verify current limits
-AI_MODEL = "llama-3.3-70b-versatile"                 # pick from that provider's current free models
+AI_MODEL = "openai/gpt-oss-120b"                     # pick from that provider's current free models
 AI_MAX_RETRIES = 3
 AI_TIMEOUT_SECONDS = 25                              # keep calls short, especially on serverless hosts
 CACHE_AGENT_OUTPUTS = True                           # reuse a draft per dispute to save free-tier quota
 
 # ---------- Search ----------
-USE_ELASTIC = False                                  # flip to True after the Elastic trial is set up
+USE_ELASTIC = True                                   # Elastic Cloud enabled
 ELASTIC_INDEX = "past_disputes"
 SEED_FILE = str(BASE_DIR / "seed" / "past_disputes.json")
 SIMILAR_CASES_TOP_K = 5
 
 # ---------- App behavior ----------
-DEMO_MODE = True                                     # True: use seeded fixtures when PayPal or AI is unavailable
+DEMO_MODE = False                                    # False: Live PayPal Sandbox and live AI/Elastic
 SYNC_PAGE_SIZE = 20
 DATABASE_URL = "sqlite:///./local.db"                # local only. On a host with ephemeral disk, use a hosted Postgres URL (TODO)
 

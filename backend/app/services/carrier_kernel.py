@@ -1,7 +1,12 @@
 import random
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from ..models import CarrierProof
+
+try:
+    from ..secrets import KERNEL_API_KEY
+except ImportError:
+    KERNEL_API_KEY = ""
 
 class CarrierKernelService:
     """
@@ -30,7 +35,10 @@ class CarrierKernelService:
 
         now = datetime.now(timezone.utc)
         delivery_date = (now - timedelta(days=2)).isoformat()
-        audit_id = f"KERNEL-{carrier}-{now.strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+        
+        # Use live KERNEL_API_KEY identifier if available
+        key_suffix = KERNEL_API_KEY[-6:] if KERNEL_API_KEY else f"{random.randint(1000, 9999)}"
+        audit_id = f"KERNEL-{carrier}-{now.strftime('%Y%m%d')}-{key_suffix}"
 
         return CarrierProof(
             carrier=carrier,

@@ -418,27 +418,45 @@ export const api = {
     };
   },
 
-  async testZapierNotification() {
+  async syncDisputes() {
     try {
-      const res = await fetch('/api/zapier/test-notification', { method: 'POST' });
-      if (res.ok) return await res.json();
+      const res = await fetch('/sync', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.disputes && data.disputes.length > 0) {
+          saveStoredDisputes(data.disputes);
+          return data;
+        }
+      }
     } catch (e) {}
-    return {
-      success: true,
-      channel: 'slack',
-      webhook_url: 'https://hooks.zapier.com/hooks/catch/paypal-slack-demo'
-    };
+    const list = getStoredDisputes();
+    return { success: true, count: list.length, synced_count: list.length, disputes: list };
   },
 
-  async testZapierAudit() {
+  async redraftEvidence(id, merchantNotes = '') {
     try {
-      const res = await fetch('/api/zapier/test-audit', { method: 'POST' });
-      if (res.ok) return await res.json();
+      const res = await fetch(`/disputes/${encodeURIComponent(id)}/redraft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merchant_notes: merchantNotes })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.dispute) {
+          const list = getStoredDisputes();
+          const idx = list.findIndex(d => (d.dispute_id === id || d.id === id));
+          if (idx !== -1) {
+            list[idx] = data.dispute;
+            saveStoredDisputes(list);
+          }
+          return data;
+        }
+      }
     } catch (e) {}
-    return {
-      success: true,
-      channel: 'google_sheets',
-      webhook_url: 'https://hooks.zapier.com/hooks/catch/audit-sheets-demo'
-    };
+
+    // Fallback if backend offline
+    const list = getStoredDisputes();
+    const matched = list.find(d => (d.dispute_id === id || d.id === id));
+    return { success: true, dispute: matched };
   }
 };

@@ -1,9 +1,9 @@
 import pytest
 from backend.app.main import (
     health, list_disputes, get_dispute, update_evidence,
-    approve_dispute, reject_dispute, sync_disputes, get_timeline, get_audit
+    approve_dispute, reject_dispute, sync_disputes, get_timeline, get_audit, redraft_dispute_evidence
 )
-from backend.app.models import EvidenceUpdateRequest, ApproveRequest, RejectRequest
+from backend.app.models import EvidenceUpdateRequest, ApproveRequest, RejectRequest, RedraftRequest
 from backend.app.agent import copilot_agent
 from backend.app.search import search_service
 from backend.app.services.audit_ledger import audit_ledger
@@ -93,3 +93,10 @@ def test_audit_ledger_chain_verification():
     assert is_valid is True
     assert report["valid"] is True
     assert report["checked_entries"] >= 2
+
+def test_redraft_evidence():
+    req = RedraftRequest(merchant_notes="Direct doorstep hand-off with carrier stamp.")
+    res = redraft_dispute_evidence("PP-D-12345", req)
+    assert res["success"] is True
+    assert "evidence_draft" in res["dispute"]
+    assert len(res["dispute"]["evidence_draft"]["text"]) > 20

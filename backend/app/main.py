@@ -6,10 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import FRONTEND_ORIGIN, DEMO_MODE
 from .database import db
 from .models import (
-    DisputeContract, EvidenceUpdateRequest, ApproveRequest, RejectRequest, SyncResponse
+    DisputeContract, EvidenceUpdateRequest, ApproveRequest, RejectRequest, SyncResponse, RedraftRequest
 )
 from .paypal_client import paypal_client
 from .sync import sync_disputes_from_paypal
+from .agent import copilot_agent
 from .services.audit_ledger import audit_ledger
 from .services.guardrails import guardrail_engine
 from .services.zapier_service import zapier_service
@@ -115,6 +116,49 @@ def update_evidence(dispute_id: str, payload: EvidenceUpdateRequest):
             action="EVIDENCE_DRAFT_MODIFIED",
             details="Merchant manually modified formal legal evidence statement in UI."
         )
+
+    return {"success": True, "dispute": dispute.dict()}
+
+# 3b. POST /disputes/{id}/redraft - Regenerate evidence draft with Groq AI
+@app.post("/disputes/{dispute_id}/redraft")
+@app.post("/api/disputes/{dispute_id}/redraft")
+def redraft_dispute_evidence(dispute_id: str, payload: RedraftRequest = RedraftRequest()):
+    dispute = db.get_by_id(dispute_id)
+    if not dispute:
+        raise HTTPException(status_code=404, detail=f"Dispute '{dispute_id}' not found.")
+
+    order_info = {
+        "id": dispute.order.id,
+        "items": [i.dict() for i in dispute.order.items],
+        "shipping": dispute.order.shipping.dict()
+    }
+    dispute_info = {
+        "id": dispute.id,
+        "reason": dispute.reason,
+        "amount": dispute.amount.value
+    }
+
+    fresh_agent_out = copilot_agent.run(
+        dispute_data=dispute_info,
+        order_data=order_info,
+        bypass_cache=True,
+        merchant_notes=payload.merchant_notes
+    )
+
+    dispute.evidence_draft.text = fresh_agent_out["evidence_text"]
+    dispute.ai_drafted_evidence = fresh_agent_out["evidence_text"]
+    dispute.win_score = fresh_agent_out["win_score"]
+    dispute.win_reasons = fresh_agent_out["win_reasons"]
+    db.save(dispute)
+
+    # Record in audit ledger
+    audit_ledger.record_entry(
+        dispute_id=dispute_id,
+        actor_type="AI_AGENT",
+        actor_id="copilot_agent_groq_120b",
+        action="DRAFT_EVIDENCE_REGENERATED",
+        details=f"AI Agent re-analyzed Elastic precedents and regenerated evidence with Groq (Win Score: {fresh_agent_out['win_score']}%)."
+    )
 
     return {"success": True, "dispute": dispute.dict()}
 

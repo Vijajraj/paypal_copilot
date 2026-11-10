@@ -39,7 +39,7 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
       buyer: 'Samantha Fox',
       carrier: 'FedEx',
       dueHours: 16,
-      desc: 'Triggers Bryntum timeline red urgent alert radar and immediate Zapier Slack notification.'
+      desc: 'Triggers deadline radar critical alert and prioritizes response required queue.'
     },
     {
       id: 'snad',

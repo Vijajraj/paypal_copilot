@@ -1,16 +1,15 @@
 import React from 'react';
 import {
   ShieldCheck,
-  Zap,
   Package,
   History,
   Sparkles,
   Clock,
-  Layers,
-  Bell,
-  User,
-  ChevronDown,
-  HelpCircle
+  RefreshCw,
+  Cpu,
+  Database,
+  CheckCircle2,
+  Lock
 } from 'lucide-react';
 
 export default function Navbar({
@@ -19,7 +18,8 @@ export default function Navbar({
   pendingCount,
   onOpenSimulate,
   onOpenAudit,
-  onOpenZapier,
+  onSync,
+  isSyncing,
   isMockMode,
   setIsMockMode
 }) {
@@ -110,7 +110,7 @@ export default function Navbar({
                 }}
               >
                 <Clock size={16} />
-                Deadline Timeline
+                Deadline Radar
               </button>
 
               <button
@@ -138,6 +138,30 @@ export default function Navbar({
 
           {/* Right Tools & Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Sync PayPal Sandbox Button */}
+            <button
+              onClick={onSync}
+              disabled={isSyncing}
+              style={{
+                background: 'rgba(255, 255, 255, 0.12)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                borderRadius: 'var(--radius-pill)',
+                color: '#ffffff',
+                padding: '7px 15px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: isSyncing ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                transition: 'all 0.15s'
+              }}
+              title="Pull fresh disputes from PayPal Sandbox REST API"
+            >
+              <RefreshCw size={13} style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }} />
+              {isSyncing ? 'Syncing...' : 'Sync PayPal'}
+            </button>
+
             {/* Simulate Webhook Button */}
             <button
               onClick={onOpenSimulate}
@@ -146,28 +170,7 @@ export default function Navbar({
               title="Simulate incoming PayPal dispute webhook"
             >
               <Sparkles size={14} />
-              Simulate Dispute
-            </button>
-
-            {/* Zapier Modal Trigger */}
-            <button
-              onClick={onOpenZapier}
-              style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: 'none',
-                borderRadius: 'var(--radius-pill)',
-                color: '#ffffff',
-                padding: '7px 14px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Zap size={14} color="#ffc439" />
-              Zapier
+              Simulate Case
             </button>
 
             {/* Audit Ledger Trigger */}
@@ -186,20 +189,21 @@ export default function Navbar({
                 alignItems: 'center',
                 gap: '6px'
               }}
+              title="View SHA-256 cryptographic compliance trail"
             >
               <History size={14} />
               Audit Ledger
             </button>
 
-            {/* Mock / Live Engine Switch */}
+            {/* Live Sandbox / Mock Indicator */}
             <button
               onClick={() => setIsMockMode(!isMockMode)}
               style={{
                 background: isMockMode ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)',
-                border: `1px solid ${isMockMode ? '#eab308' : '#22c55e'}`,
+                border: `1.5px solid ${isMockMode ? '#eab308' : '#22c55e'}`,
                 borderRadius: 'var(--radius-pill)',
                 color: '#ffffff',
-                padding: '6px 12px',
+                padding: '6px 14px',
                 fontSize: '0.74rem',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -207,6 +211,7 @@ export default function Navbar({
                 alignItems: 'center',
                 gap: '6px'
               }}
+              title="Toggle between Live Sandbox Mode & Local Mock Mode"
             >
               <span style={{
                 width: '7px',
@@ -214,10 +219,10 @@ export default function Navbar({
                 borderRadius: '50%',
                 backgroundColor: isMockMode ? '#facc15' : '#4ade80'
               }} />
-              {isMockMode ? 'Mock Mode' : 'Live Sandbox'}
+              {isMockMode ? 'Mock Offline' : 'Live Sandbox'}
             </button>
 
-            {/* Profile Badge */}
+            {/* Profile Avatar */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -244,7 +249,7 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Secondary PayPal Sub-Header / Breadcrumb Banner with max-width alignment */}
+      {/* Secondary Sub-Header Banner with Live Engine Badges */}
       <div style={{
         background: '#ffffff',
         borderBottom: '1px solid var(--border-light)',
@@ -253,7 +258,7 @@ export default function Navbar({
         <div style={{
           maxWidth: '1440px',
           margin: '0 auto',
-          padding: '18px 32px',
+          padding: '16px 32px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -261,47 +266,81 @@ export default function Navbar({
           gap: '16px'
         }}>
           <div>
-            <div style={{ fontSize: '0.76rem', color: '#687173', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              PayPal Merchant Operations &gt; Resolution Center
+            <div style={{ fontSize: '0.74rem', color: '#687173', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              PayPal Merchant Operations &gt; Resolution Center &gt; Copilot AI
             </div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#003087', marginTop: '2px', letterSpacing: '-0.02em' }}>
-              Resolution Center
+            <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#003087', marginTop: '2px', letterSpacing: '-0.02em' }}>
+              Dispute Resolution Center
             </h1>
-            <p style={{ fontSize: '0.84rem', color: '#475569', marginTop: '2px' }}>
-              Review, contest, and resolve buyer disputes. Powered by AI evidence drafting with mandatory human sign-off.
+            <p style={{ fontSize: '0.82rem', color: '#475569', marginTop: '2px' }}>
+              Autonomously extracts carrier delivery proof, matches Elastic precedents, and drafts defense with mandatory human approval.
             </p>
           </div>
 
-          {/* PayPal Seller Protection Notice Card */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: 'var(--radius-md)',
-            padding: '10px 18px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-          }}>
+          {/* Live Stack Infrastructure Status Badges */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <div style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '50%',
-              background: '#dcfce7',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
+              gap: '6px',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: 'var(--radius-pill)',
+              padding: '6px 12px',
+              fontSize: '0.74rem',
+              color: '#15803d',
+              fontWeight: 700
             }}>
-              <ShieldCheck size={20} color="#15803d" />
+              <CheckCircle2 size={13} color="#16a34a" />
+              PayPal Sandbox Connected
             </div>
-            <div>
-              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#166534' }}>
-                PayPal Seller Protection Active
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#15803d' }}>
-                Covered orders with proof of delivery are safeguarded against chargebacks.
-              </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: 'var(--radius-pill)',
+              padding: '6px 12px',
+              fontSize: '0.74rem',
+              color: '#1d4ed8',
+              fontWeight: 700
+            }}>
+              <Cpu size={13} color="#2563eb" />
+              Groq (openai/gpt-oss-120b)
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#fefce8',
+              border: '1px solid #fef08a',
+              borderRadius: 'var(--radius-pill)',
+              padding: '6px 12px',
+              fontSize: '0.74rem',
+              color: '#a16207',
+              fontWeight: 700
+            }}>
+              <Database size={13} color="#ca8a04" />
+              Elastic Cloud: 30 Precedents
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#faf5ff',
+              border: '1px solid #e9d5ff',
+              borderRadius: 'var(--radius-pill)',
+              padding: '6px 12px',
+              fontSize: '0.74rem',
+              color: '#7e22ce',
+              fontWeight: 700
+            }}>
+              <Lock size={13} color="#9333ea" />
+              Human Gate Active
             </div>
           </div>
         </div>
