@@ -1,6 +1,6 @@
 # PayPal AI Dispute Copilot
 
-> **An AI dispute assistant for small PayPal sellers with strict human-in-the-loop guardrails.**
+> **An AI dispute assistant for small PayPal sellers with strict human-in-the-loop guardrails.**  
 > **Hackathon:** Build What's Next with PayPal and AI  
 > **Submission Date:** 13 Nov 2026 (Aim to submit Thu 12 Nov)
 
@@ -22,8 +22,8 @@ An intuitive, enterprise-grade merchant dashboard inspired by PayPal's Business 
                  │
                  ▼
 ┌─────────────────────────────────┐      ┌───────────────────────────────┐
-│    AI Dispute Copilot Agent     │◄────▶│ Precedent Search (In-Code /   │
-│  (Factual Draft + Win Estimate) │      │ Elastic Cloud past_disputes)  │
+│    AI Dispute Copilot Agent     │◄────▶│ Elastic Cloud Search Engine   │
+│  (Factual Draft + Win Estimate) │      │ (30 Synced past_disputes)     │
 └────────────────┬────────────────┘      └───────────────────────────────┘
                  │
                  ▼
@@ -37,7 +37,7 @@ An intuitive, enterprise-grade merchant dashboard inspired by PayPal's Business 
                  ▼
 ┌─────────────────────────────────┐      ┌───────────────────────────────┐
 │   Submit Evidence to PayPal     │─────▶│ Chained SHA-256 Audit Ledger  │
-│   POST /v1/.../provide-evidence │      │ & Zapier Multi-Channel Alerts │
+│   POST /v1/.../provide-evidence │      │ (Cryptographic Proof of Sign) │
 └─────────────────────────────────┘      └───────────────────────────────┘
 ```
 
@@ -47,7 +47,8 @@ An intuitive, enterprise-grade merchant dashboard inspired by PayPal's Business 
 
 - **AG Grid Dispute Queue**: High-performance table with real-time dispute status badges, win-rate progress indicators, multi-field filtering, and sorting.
 - **Response Deadline Radar**: Timeline view highlighting critical upcoming deadlines so time-sensitive disputes (< 24 hours) are resolved first.
-- **AI Evidence Studio**: Gathers carrier tracking proofs, matches legal precedents, computes estimated win chances, and generates editable formal dispute responses.
+- **AI Evidence Studio**: Gathers carrier tracking proofs via KERNEL, searches precedent cases on Elastic Cloud, computes estimated win chances, and generates formal legal defense statements.
+- **Groq AI Live Re-Drafting**: 1-click evidence regeneration powered by Groq (`openai/gpt-oss-120b`) taking merchant-specific notes into account.
 - **Human-in-the-Loop Guardrail**: Protects merchant funds with mandatory human authorization (`approval_state = 'pending'`). AI is strictly blocked in code from autonomously submitting disputes.
 - **Cryptographic Audit Ledger**: Records each AI draft, merchant revision, and human authorization in an immutable, chained SHA-256 audit ledger.
 - **Channel3 Supply Restock**: Predictive inventory replenishment for packaging materials to prevent fulfillment delay disputes, backed by an autonomous spending cap ($500).
@@ -97,7 +98,12 @@ All secrets live in one file: `backend/app/secrets.py` (which is **gitignored**)
 ```bash
 cp backend/app/secrets.example.py backend/app/secrets.py
 ```
-Fill in your PayPal Sandbox credentials and keys in `backend/app/secrets.py`.
+Fill in your credentials in `backend/app/secrets.py`:
+- `PAYPAL_CLIENT_ID` & `PAYPAL_CLIENT_SECRET`
+- `AI_API_KEY` (Groq API Key)
+- `ELASTIC_URL` & `ELASTIC_API_KEY`
+- `KERNEL_API_KEY`
+- `APPROVAL_SECRET` (Internal security token for the human approval gate)
 
 ### 3. Install & Start Backend
 ```bash
@@ -123,16 +129,35 @@ Run the automated test suite verifying Person A endpoints, guardrail gates, sear
 ```bash
 python -m pytest backend/tests -v -p no:asyncio
 ```
+**Test Results:** 12/12 passing unit tests.
+
+---
+
+## REST API Endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/disputes` | List disputes with optional `?status=` filter |
+| `GET` | `/disputes/{id}` | Full dispute detail conforming to shared contract |
+| `PATCH` | `/disputes/{id}/evidence` | Save seller edits to evidence draft |
+| `POST` | `/disputes/{id}/redraft` | Re-run Groq AI agent with merchant notes |
+| `POST` | `/disputes/{id}/approve` | **Approval Gate**: Human signs off, submits to PayPal |
+| `POST` | `/disputes/{id}/reject` | Reject draft / concede claim |
+| `POST` | `/sync` | Force pull/refresh from PayPal Sandbox |
+| `GET` | `/timeline` | Dispute response deadlines sorted chronologically |
+| `GET` | `/audit` | SHA-256 chained audit ledger and integrity report |
+| `POST` | `/webhooks/paypal` | PayPal webhook receiver (signature verification + deduplication) |
+| `POST` | `/disputes/simulate` | Demo test harness to simulate incoming PayPal dispute |
 
 ---
 
 ## Sponsor Tools Used
 
 - **PayPal Sandbox REST API**: Dispute resolution API (`/v1/customer/disputes`), webhook verification (`/v1/notifications/verify-webhook-signature`), and OAuth2 client credentials authentication.
-- **Elastic Cloud**: Precedent search over synthetic dispute datasets (`backend/seed/past_disputes.json`), with in-code fallback (`USE_ELASTIC = False`).
-- **Groq / Llama 3.3**: Agentic evidence drafting using few-shot prompt guardrails that strictly prohibit inventing tracking or documents.
+- **Elastic Cloud**: Real-time legal precedent search over 30 synthetic dispute datasets indexed into `past_disputes` (`USE_ELASTIC = True`), with in-code fallback.
+- **Groq AI Engine**: Fast inference using `openai/gpt-oss-120b` for agentic evidence drafting using few-shot prompt guardrails that strictly prohibit hallucinating tracking or documents.
+- **KERNEL**: Carrier tracking proof and GPS destination verification engine across UPS, FedEx, USPS, and DHL.
 - **AG Grid Community**: High-performance merchant data grid with sorting, filtering, and custom cell renderers.
-- **Zapier**: Dispatches Slack alerts on incoming disputes and logs approved entries directly into Google Sheets.
 
 ---
 
@@ -146,8 +171,8 @@ python -m pytest backend/tests -v -p no:asyncio
 │   │   ├── secrets.example.py   # Committed secrets template
 │   │   ├── secrets.py           # GITIGNORED local secrets
 │   │   ├── models.py            # Pydantic dispute data contract
-│   │   ├── agent.py             # AI Dispute Copilot Agent
-│   │   ├── search.py            # Precedent search (in-code & Elastic)
+│   │   ├── agent.py             # AI Dispute Copilot Agent (Groq 120B)
+│   │   ├── search.py            # Precedent search (Elastic Cloud & in-code)
 │   │   ├── paypal_client.py     # PayPal Sandbox client
 │   │   ├── sync.py              # Polling sync fallback
 │   │   ├── webhooks.py          # PayPal webhook receiver

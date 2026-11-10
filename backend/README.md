@@ -11,9 +11,9 @@
 When a buyer opens a PayPal dispute, this backend:
 1. Receives the dispute webhook (or retrieves disputes via the `/sync` polling fallback).
 2. Pulls dispute, order, and shipping carrier data from PayPal Sandbox.
-3. Runs the **AI Dispute Copilot Agent** which searches similar past dispute precedents (via in-code search or Elastic Cloud), computes empirical win chances, and drafts factual, policy-backed evidence.
+3. Runs the **AI Dispute Copilot Agent** (powered by Groq `openai/gpt-oss-120b`) which queries **Elastic Cloud** (`past_disputes` index) for precedent cases, computes empirical win chances, and drafts factual, policy-backed evidence.
 4. Enforces a strict in-code **Human-in-the-Loop Approval Gate** (`approval_state = 'pending'`). AI is blocked from submitting evidence or touching merchant money.
-5. Only upon explicit human sign-off (protected by `APPROVAL_SECRET`), submits the evidence to PayPal Sandbox and logs the action into a chained SHA-256 cryptographic audit ledger.
+5. Only upon explicit human sign-off (protected by `APPROVAL_SECRET`), submits the evidence to PayPal Sandbox and logs the action into an immutable, chained SHA-256 cryptographic audit ledger.
 
 ```
 ┌─────────────────────────────────┐
@@ -27,8 +27,8 @@ When a buyer opens a PayPal dispute, this backend:
                  │
                  ▼
 ┌─────────────────────────────────┐      ┌───────────────────────────────┐
-│    AI Dispute Copilot Agent     │◄────▶│ Precedent Search (In-Code /   │
-│  (Factual Draft + Win Estimate) │      │ Elastic Cloud past_disputes)  │
+│    AI Dispute Copilot Agent     │◄────▶│ Elastic Cloud Search Engine   │
+│  (Groq 120B Factual Drafting)   │      │ (30 Synced past_disputes)     │
 └────────────────┬────────────────┘      └───────────────────────────────┘
                  │
                  ▼
@@ -42,7 +42,7 @@ When a buyer opens a PayPal dispute, this backend:
                  ▼
 ┌─────────────────────────────────┐      ┌───────────────────────────────┐
 │   Submit Evidence to PayPal     │─────▶│ Chained SHA-256 Audit Ledger  │
-│   POST /v1/.../provide-evidence │      │ & Zapier Multi-Channel Alerts │
+│   POST /v1/.../provide-evidence │      │ (Immutable Cryptographic Proof│
 └─────────────────────────────────┘      └───────────────────────────────┘
 ```
 
@@ -104,10 +104,11 @@ cp backend/app/secrets.example.py backend/app/secrets.py
 ```
 Fill in:
 - `PAYPAL_CLIENT_ID` & `PAYPAL_CLIENT_SECRET`: From PayPal Developer Sandbox app
-- `PAYPAL_WEBHOOK_ID`: From the PayPal sandbox webhook configuration
-- `AI_API_KEY`: Groq, OpenAI, or Gemini free-tier API key
+- `PAYPAL_WEBHOOK_ID`: From PayPal sandbox webhook configuration
+- `AI_API_KEY`: Groq API key (`openai/gpt-oss-120b`)
 - `APPROVAL_SECRET`: Secret token used to protect the merchant approval endpoint
-- `ELASTIC_URL` & `ELASTIC_API_KEY`: (Optional) When `USE_ELASTIC = True`
+- `ELASTIC_URL` & `ELASTIC_API_KEY`: Elastic Cloud credentials (configured with `USE_ELASTIC = True`)
+- `KERNEL_API_KEY`: KERNEL tracking API key
 
 ---
 
@@ -118,6 +119,7 @@ Fill in:
 | `GET` | `/disputes` | List disputes with optional `?status=` filter |
 | `GET` | `/disputes/{id}` | Full dispute detail conforming to shared contract |
 | `PATCH` | `/disputes/{id}/evidence` | Save seller edits to evidence draft |
+| `POST` | `/disputes/{id}/redraft` | Re-run Groq AI agent with optional merchant notes |
 | `POST` | `/disputes/{id}/approve` | **Approval Gate**: Human signs off, submits to PayPal |
 | `POST` | `/disputes/{id}/reject` | Reject draft / concede claim |
 | `POST` | `/sync` | Force pull/refresh from PayPal Sandbox |
@@ -141,7 +143,7 @@ python -m pip install -r backend/requirements.txt
 
 ### 3. Run the Backend API
 ```bash
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+python run_backend.py
 ```
 Interactive API docs available at: **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**.
 
@@ -149,12 +151,13 @@ Interactive API docs available at: **[http://127.0.0.1:8000/docs](http://127.0.0
 ```bash
 python -m pytest backend/tests -v -p no:asyncio
 ```
+**Test Results:** 12/12 passing unit tests.
 
 ---
 
 ## 6. Sponsor Tools & Integrations
 
 - **PayPal Sandbox REST API**: OAuth2 authentication, dispute resolution API (`/v1/customer/disputes`), and webhook signature verification (`/v1/notifications/verify-webhook-signature`).
-- **Elastic Search**: Precedent search over synthetic dispute datasets (`backend/seed/past_disputes.json`), toggled via `USE_ELASTIC = False` (in-code fallback for maximum reliability).
-- **Groq / Llama 3.3**: Agentic evidence drafting using few-shot prompt guardrails that strictly prohibit hallucinating tracking or documents.
-- **Zapier**: Dispatches Slack alerts on incoming dispute and logs audit entries directly into Google Sheets.
+- **Elastic Cloud**: Precedent search over 30 synthetic dispute datasets indexed into `past_disputes` (`USE_ELASTIC = True`), with in-code fallback.
+- **Groq / openai/gpt-oss-120b**: Agentic evidence drafting using few-shot prompt guardrails that strictly prohibit hallucinating tracking or documents.
+- **KERNEL**: Carrier tracking proof and GPS destination verification engine across UPS, FedEx, USPS, and DHL.
