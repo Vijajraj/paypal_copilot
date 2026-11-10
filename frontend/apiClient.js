@@ -178,7 +178,7 @@ export const api = {
       const res = await fetch(`/disputes/${encodeURIComponent(id)}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approver_id: approverId, approval_secret: 'demo_approval_secret_hackathon_2026' })
+        body: JSON.stringify({ approver_id: approverId, approval_secret: 'ccf085057cf069712cebc1e32b3d13a165fb63fe57282150dbb6285350bd65b9' })
       });
       if (res.ok) {
         return await res.json();

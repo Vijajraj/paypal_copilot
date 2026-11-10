@@ -39,7 +39,7 @@ def test_update_evidence():
 def test_approve_dispute():
     req = ApproveRequest(
         approver_id="Authorized Merchant Manager",
-        approval_secret="demo_approval_secret_hackathon_2026"
+        approval_secret="ccf085057cf069712cebc1e32b3d13a165fb63fe57282150dbb6285350bd65b9"
     )
     data = approve_dispute("PP-D-12345", req)
     assert data["success"] is True
