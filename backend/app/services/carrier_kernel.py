@@ -15,7 +15,7 @@ class CarrierKernelService:
     and generates an immutable audit verification record.
     """
 
-    SUPPORTED_CARRIERS = ["UPS", "FedEx", "USPS", "DHL"]
+    SUPPORTED_CARRIERS = ["UPS", "FEDEX", "USPS", "DHL"]
 
     @classmethod
     def verify_tracking(

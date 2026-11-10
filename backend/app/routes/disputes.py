@@ -76,7 +76,18 @@ async def simulate_dispute(payload: SimulateRequest):
         ),
         win_score=agent_output["win_score"],
         win_reasons=agent_output["win_reasons"],
-        approval_state="pending"
+        approval_state="pending",
+        buyer={
+            "name": buyer_name,
+            "email": f"{buyer_name.lower().replace(' ', '.')}@example.com",
+            "shipping_address": {
+                "line1": "120 Market Street",
+                "city": "Seattle",
+                "state": "WA",
+                "postal_code": "98101",
+                "country_code": "US"
+            }
+        }
     )
     new_dispute.populate_compatibility_fields()
     db.save(new_dispute)
@@ -91,6 +102,6 @@ async def simulate_dispute(payload: SimulateRequest):
     )
 
     # Trigger Zapier notification alert
-    await zapier_service.trigger_dispute_notification(new_dispute)
+    zapier_service.trigger_dispute_notification(new_dispute)
 
     return {"success": True, "dispute": new_dispute.dict()}

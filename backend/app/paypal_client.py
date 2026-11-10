@@ -68,7 +68,8 @@ class PayPalClient:
                     res = client.get(url, headers=headers)
                     if res.status_code == 200:
                         items = res.json().get("items", [])
-                        return items
+                        if items:
+                            return items
             except Exception as e:
                 print(f"[PayPalClient] List disputes error: {e}")
 
