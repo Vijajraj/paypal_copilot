@@ -4,9 +4,14 @@ import { initialMockDisputes } from './initialMockData.js';
 const STORAGE_KEY_DISPUTES = 'paypal_copilot_disputes_v1';
 const STORAGE_KEY_AUDIT = 'paypal_copilot_audit_v1';
 const STORAGE_KEY_RESTOCK = 'paypal_copilot_restock_v1';
-const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+
+export const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
   ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
   : '';
+
+export const DEFAULT_APPROVAL_SECRET = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_APPROVAL_SECRET)
+  ? import.meta.env.VITE_APPROVAL_SECRET
+  : 'ccf085057cf069712cebc1e32b3d13a165fb63fe57282150dbb6285350bd65b9';
 
 const defaultRestockItems = [
   {
@@ -120,50 +125,114 @@ function saveStoredRestock(list) {
   } catch (e) {}
 }
 
+// Normalizes a dispute so both Person A and Person B field names work everywhere
+export function normalizeDispute(d) {
+  if (!d) return d;
+  const id = d.id || d.dispute_id;
+  const amountVal = d.amount?.value || d.dispute_amount?.value || '0.00';
+  const amountCurr = d.amount?.currency || d.dispute_amount?.currency || 'USD';
+  const dueDate = d.respond_by || d.seller_response_due_date || new Date().toISOString();
+  const draft = d.evidence_draft?.text || d.ai_drafted_evidence || '';
+  const orderId = d.order?.id || d.order_id || 'ORD-001';
+
+  return {
+    ...d,
+    id,
+    dispute_id: id,
+    amount: { value: String(amountVal), currency: amountCurr },
+    dispute_amount: { value: String(amountVal), currency: amountCurr },
+    order_id: orderId,
+    seller_response_due_date: dueDate,
+    respond_by: dueDate,
+    ai_drafted_evidence: draft,
+    evidence_draft: d.evidence_draft || { text: draft, proofs: [] },
+    carrier_proof: d.carrier_proof || {
+      carrier: d.order?.shipping?.carrier || 'UPS',
+      tracking_number: d.order?.shipping?.tracking_number || '1Z9999999999',
+      status: d.order?.shipping?.status || 'DELIVERED',
+      delivery_date: d.order?.shipping?.delivery_date || d.created_at,
+      signed_by: d.order?.shipping?.signed_by || 'Authorized Recipient',
+      has_signature: d.order?.shipping?.has_signature ?? true,
+      carrier_verified: true,
+      kernel_audit_id: 'KERNEL-CERT-9921',
+      delivery_address_verified: true
+    },
+    buyer: d.buyer || {
+      name: d.order?.shipping?.signed_by || 'Customer',
+      email: 'customer@example.com',
+      shipping_address: {
+        line1: '120 Market Street',
+        city: 'Seattle',
+        state: 'WA',
+        postal_code: '98101',
+        country_code: 'US'
+      }
+    },
+    seller_approval: d.seller_approval || {
+      approved: d.approval_state === 'approved' || d.approval_state === 'submitted',
+      conceded: d.approval_state === 'rejected',
+      approved_at: null,
+      approver_id: null,
+      rejection_reason: null
+    }
+  };
+}
+
 export const api = {
   async getDisputes(status = null) {
     try {
-      const url = status ? `/disputes?status=${encodeURIComponent(status)}` : '/disputes';
-      const res = await fetch(url);
+      const endpoint = status ? `${API_BASE}/disputes?status=${encodeURIComponent(status)}` : `${API_BASE}/disputes`;
+      const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
-        if (data.disputes && data.disputes.length > 0) {
-          saveStoredDisputes(data.disputes);
-          return data;
+        if (data.disputes && Array.isArray(data.disputes)) {
+          const normalized = data.disputes.map(normalizeDispute);
+          saveStoredDisputes(normalized);
+          return { success: true, count: normalized.length, disputes: normalized };
         }
       }
     } catch (e) {
-      // Backend not running, use fallback
+      // Backend not running, use local storage fallback
     }
-    const list = getStoredDisputes();
+    const list = getStoredDisputes().map(normalizeDispute);
     const filtered = status ? list.filter(d => d.status === status) : list;
     return { success: true, count: filtered.length, disputes: filtered };
   },
 
   async getDispute(id) {
     try {
-      const res = await fetch(`/disputes/${encodeURIComponent(id)}`);
+      const res = await fetch(`${API_BASE}/disputes/${encodeURIComponent(id)}`);
       if (res.ok) {
-        return await res.json();
+        const data = await res.json();
+        return { success: true, dispute: normalizeDispute(data.dispute) };
       }
     } catch (e) {}
     const list = getStoredDisputes();
     const matched = list.find(d => (d.dispute_id === id || d.id === id));
     if (!matched) throw new Error(`Dispute ${id} not found`);
-    return { success: true, dispute: matched };
+    return { success: true, dispute: normalizeDispute(matched) };
   },
 
   async updateEvidence(id, evidenceText, approverId = 'seller_merchant_primary') {
     try {
-      const res = await fetch(`/disputes/${encodeURIComponent(id)}/evidence`, {
+      const res = await fetch(`${API_BASE}/disputes/${encodeURIComponent(id)}/evidence`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: evidenceText, approver_id: approverId })
       });
       if (res.ok) {
-        return await res.json();
+        const data = await res.json();
+        const normalized = normalizeDispute(data.dispute);
+        return { success: true, dispute: normalized };
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server returned ${res.status}`);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+    }
 
     const list = getStoredDisputes();
     const idx = list.findIndex(d => (d.dispute_id === id || d.id === id));
@@ -171,21 +240,32 @@ export const api = {
 
     list[idx].ai_drafted_evidence = evidenceText;
     if (list[idx].evidence_draft) list[idx].evidence_draft.text = evidenceText;
+    const normalized = normalizeDispute(list[idx]);
+    list[idx] = normalized;
     saveStoredDisputes(list);
-    return { success: true, dispute: list[idx] };
+    return { success: true, dispute: normalized };
   },
 
-  async approveDispute(id, approverId = 'seller_merchant_primary') {
+  async approveDispute(id, approverId = 'Authorized Seller Representative', approvalSecret = DEFAULT_APPROVAL_SECRET) {
     try {
-      const res = await fetch(`/disputes/${encodeURIComponent(id)}/approve`, {
+      const res = await fetch(`${API_BASE}/disputes/${encodeURIComponent(id)}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approver_id: approverId, approval_secret: 'ccf085057cf069712cebc1e32b3d13a165fb63fe57282150dbb6285350bd65b9' })
+        body: JSON.stringify({ approver_id: approverId, approval_secret: approvalSecret })
       });
       if (res.ok) {
-        return await res.json();
+        const data = await res.json();
+        const normalized = normalizeDispute(data.dispute);
+        return { success: true, dispute: normalized, audit: data.audit };
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Approval blocked (${res.status}): Verification failed`);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+    }
 
     const list = getStoredDisputes();
     const idx = list.findIndex(d => (d.dispute_id === id || d.id === id));
@@ -201,6 +281,8 @@ export const api = {
       approver_id: approverId,
       rejection_reason: null
     };
+    const normalized = normalizeDispute(list[idx]);
+    list[idx] = normalized;
     saveStoredDisputes(list);
 
     // Record in local audit trail
@@ -212,27 +294,36 @@ export const api = {
       timestamp: now,
       actor: { type: 'HUMAN_APPROVER', id: approverId },
       action: 'DISPUTE_EVIDENCE_SUBMITTED',
-      details: `Human seller representative "${approverId}" authorized formal evidence submission to PayPal Sandbox API.`,
+      details: `Human merchant representative "${approverId}" authorized formal evidence submission to PayPal Sandbox API.`,
       hash: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
       prevHash: prev ? prev.hash : '0000000000000000000000000000000000000000000000000000000000000000'
     };
     auditList.push(newEntry);
     saveStoredAudit(auditList);
 
-    return { success: true, dispute: list[idx], audit: newEntry };
+    return { success: true, dispute: normalized, audit: newEntry };
   },
 
-  async rejectDispute(id, reason, approverId = 'seller_merchant_primary') {
+  async rejectDispute(id, reason, approverId = 'Authorized Seller Representative') {
     try {
-      const res = await fetch(`/disputes/${encodeURIComponent(id)}/reject`, {
+      const res = await fetch(`${API_BASE}/disputes/${encodeURIComponent(id)}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason, approver_id: approverId })
       });
       if (res.ok) {
-        return await res.json();
+        const data = await res.json();
+        const normalized = normalizeDispute(data.dispute);
+        return { success: true, dispute: normalized };
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server error (${res.status})`);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+    }
 
     const list = getStoredDisputes();
     const idx = list.findIndex(d => (d.dispute_id === id || d.id === id));
@@ -248,14 +339,16 @@ export const api = {
       approver_id: approverId,
       rejection_reason: reason
     };
+    const normalized = normalizeDispute(list[idx]);
+    list[idx] = normalized;
     saveStoredDisputes(list);
 
-    return { success: true, dispute: list[idx] };
+    return { success: true, dispute: normalized };
   },
 
   async simulateDispute(scenario = {}) {
     try {
-      const res = await fetch('/disputes/simulate', {
+      const res = await fetch(`${API_BASE}/disputes/simulate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scenario)
@@ -263,79 +356,58 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         if (data.dispute) {
+          const normalized = normalizeDispute(data.dispute);
           const list = getStoredDisputes();
-          list.unshift(data.dispute);
+          list.unshift(normalized);
           saveStoredDisputes(list);
-          return data;
+          return { success: true, dispute: normalized };
         }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Simulation failed (${res.status})`);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+    }
 
     const list = getStoredDisputes();
     const newId = `PP-D-${Math.floor(4000000 + Math.random() * 5000000)}`;
     const dueHours = scenario.due_hours || 48;
     const dueDate = new Date(Date.now() + dueHours * 60 * 60 * 1000).toISOString();
+    const amt = parseFloat(scenario.amount || '450.00').toFixed(2);
 
-    const simulated = {
-      dispute_id: newId,
+    const simulated = normalizeDispute({
       id: newId,
       status: 'WAITING_FOR_SELLER_RESPONSE',
       approval_state: 'pending',
-      dispute_amount: {
-        currency: 'USD',
-        value: parseFloat(scenario.amount || '450.00').toFixed(2)
-      },
-      amount: {
-        currency: 'USD',
-        value: parseFloat(scenario.amount || '450.00').toFixed(2)
-      },
-      reason: scenario.reason || 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED',
-      seller_response_due_date: dueDate,
+      amount: { currency: 'USD', value: amt },
+      reason: scenario.reason || 'ITEM_NOT_RECEIVED',
       respond_by: dueDate,
-      order_id: `ORD-${Math.floor(10000 + Math.random() * 90000)}`,
-      transaction_id: `TRX-${Math.floor(10000000 + Math.random() * 90000000)}X`,
-      buyer: {
-        name: scenario.buyer_name || 'Alexander Wright',
-        email: 'alex.wright@example.com',
-        shipping_address: {
-          line1: '120 Market Street',
-          city: 'Seattle',
-          state: 'WA',
-          postal_code: '98101',
-          country_code: 'US'
+      order: {
+        id: `ORD-${Math.floor(10000 + Math.random() * 90000)}`,
+        items: [{ name: scenario.item_name || 'USB-C Dual 4K Pro Docking Station', qty: 1 }],
+        shipping: {
+          carrier: scenario.carrier || 'UPS',
+          tracking_number: '1Z' + Math.random().toString().slice(2, 18),
+          status: 'DELIVERED',
+          delivery_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          signed_by: (scenario.buyer_name || 'A. WRIGHT').toUpperCase(),
+          has_signature: true
         }
       },
-      item: {
-        name: scenario.item_name || 'USB-C Dual 4K Pro Docking Station',
-        sku: 'ACC-DCK-PRO',
-        quantity: 1,
-        price: parseFloat(scenario.amount || '450.00').toFixed(2)
-      },
-      carrier_proof: {
-        carrier: scenario.carrier || 'UPS',
-        tracking_number: '1Z' + Math.random().toString().slice(2, 18),
-        status: 'DELIVERED',
-        delivery_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        signed_by: scenario.buyer_name || 'A. WRIGHT',
-        has_signature: true,
-        carrier_verified: true,
-        kernel_audit_id: `KERNEL-SIM-${Math.floor(1000 + Math.random() * 9000)}`,
-        delivery_address_verified: true
+      evidence_draft: {
+        text: `Dear PayPal Dispute Resolution Team,\n\nWe respectfully contest Dispute ${newId} regarding Order for ${scenario.item_name || 'Product'} ($${amt} USD).\n\n1. PROOF OF SHIPMENT & DELIVERY:\nThe order was dispatched via ${scenario.carrier || 'UPS'} to the verified PayPal shipping address.\n\n2. CARRIER AUDIT CONFIRMATION:\nCarrier records confirm delivery was successfully completed with signature on file.\n\n3. PAYPAL SELLER PROTECTION:\nAll criteria under Seller Protection Policy Section 11.3 have been satisfied.\n\nRespectfully submitted,\nAuthorized Merchant Representative`,
+        proofs: []
       },
       win_score: 91,
       win_reasons: [
-        'Carrier proof of delivery confirmed via KERNEL',
-        'Recipient signature confirmed on file',
-        'Postal code matches buyer address'
-      ],
-      ai_drafted_evidence: `Dear PayPal Dispute Resolution Team,\n\nWe respectfully contest Dispute ${newId} regarding Order for ${scenario.item_name || 'Product'} ($${scenario.amount || '450.00'}).\n\n1. PROOF OF SHIPMENT & DELIVERY:\nThe order was dispatched via ${scenario.carrier || 'UPS'} to the verified PayPal shipping address.\n\n2. CARRIER AUDIT CONFIRMATION:\nCarrier confirms delivery was successfully completed with signature on file.\n\n3. PAYPAL SELLER PROTECTION:\nAll criteria under Seller Protection Policy Section 11.3 have been satisfied.\n\nRespectfully submitted,\nAuthorized Merchant Representative`,
-      seller_approval: {
-        approved: false,
-        approved_at: null,
-        approver_id: null,
-        rejection_reason: null
-      }
-    };
+        'Carrier proof of delivery confirmed via KERNEL engine',
+        'Recipient adult signature confirmed on file',
+        'Destination postal code matches buyer verified address'
+      ]
+    });
 
     list.unshift(simulated);
     saveStoredDisputes(list);
@@ -344,7 +416,7 @@ export const api = {
 
   async getAuditTrail(disputeId = null) {
     try {
-      const url = disputeId ? `/audit?dispute_id=${encodeURIComponent(disputeId)}` : '/audit';
+      const url = disputeId ? `${API_BASE}/audit?dispute_id=${encodeURIComponent(disputeId)}` : `${API_BASE}/audit`;
       const res = await fetch(url);
       if (res.ok) {
         return await res.json();
@@ -356,7 +428,7 @@ export const api = {
     return {
       success: true,
       count: filtered.length,
-      audit_trail: filtered.reverse(),
+      audit_trail: [...filtered].reverse(),
       ledger_integrity: {
         valid: true,
         checked_entries: filtered.length,
@@ -367,7 +439,7 @@ export const api = {
 
   async getRestockInventory() {
     try {
-      const res = await fetch('/api/restock');
+      const res = await fetch(`${API_BASE}/api/restock`);
       if (res.ok) {
         return await res.json();
       }
@@ -385,15 +457,22 @@ export const api = {
 
   async orderRestock(itemId, quantity, approverId = 'seller_merchant_primary') {
     try {
-      const res = await fetch('/api/restock/order', {
+      const res = await fetch(`${API_BASE}/api/restock/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ item_id: itemId, quantity, approver_id: approverId })
       });
       if (res.ok) {
         return await res.json();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Restock order blocked: Guardrail limit exceeded`);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+    }
 
     const items = getStoredRestock();
     const idx = items.findIndex(i => i.id === itemId);
@@ -401,7 +480,7 @@ export const api = {
 
     const totalCost = items[idx].unit_cost_usd * quantity;
     if (totalCost > 500) {
-      throw new Error(`Spending limit exceeded ($${totalCost} > $500.00)`);
+      throw new Error(`Spending cap exceeded: $${totalCost.toFixed(2)} exceeds $500.00 autonomous threshold.`);
     }
 
     items[idx].current_stock += quantity;
@@ -422,22 +501,23 @@ export const api = {
 
   async syncDisputes() {
     try {
-      const res = await fetch('/sync', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/sync`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
-        if (data.disputes && data.disputes.length > 0) {
-          saveStoredDisputes(data.disputes);
-          return data;
+        if (data.disputes && Array.isArray(data.disputes)) {
+          const normalized = data.disputes.map(normalizeDispute);
+          saveStoredDisputes(normalized);
+          return { success: true, count: normalized.length, synced_count: normalized.length, disputes: normalized };
         }
       }
     } catch (e) {}
-    const list = getStoredDisputes();
+    const list = getStoredDisputes().map(normalizeDispute);
     return { success: true, count: list.length, synced_count: list.length, disputes: list };
   },
 
   async redraftEvidence(id, merchantNotes = '') {
     try {
-      const res = await fetch(`/disputes/${encodeURIComponent(id)}/redraft`, {
+      const res = await fetch(`${API_BASE}/disputes/${encodeURIComponent(id)}/redraft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ merchant_notes: merchantNotes })
@@ -445,20 +525,27 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         if (data.dispute) {
+          const normalized = normalizeDispute(data.dispute);
           const list = getStoredDisputes();
           const idx = list.findIndex(d => (d.dispute_id === id || d.id === id));
           if (idx !== -1) {
-            list[idx] = data.dispute;
+            list[idx] = normalized;
             saveStoredDisputes(list);
           }
-          return data;
+          return { success: true, dispute: normalized };
         }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Groq AI generation failed (${res.status})`);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+    }
 
-    // Fallback if backend offline
     const list = getStoredDisputes();
     const matched = list.find(d => (d.dispute_id === id || d.id === id));
-    return { success: true, dispute: matched };
+    return { success: true, dispute: normalizeDispute(matched) };
   }
 };

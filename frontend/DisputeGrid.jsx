@@ -8,11 +8,9 @@ import {
   Clock,
   CheckCircle2,
   ChevronRight,
-  TrendingUp,
   Search,
-  Filter,
-  ShieldCheck,
-  ArrowUpRight
+  Check,
+  XCircle
 } from 'lucide-react';
 
 export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute }) {
@@ -20,30 +18,31 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
   const [filterType, setFilterType] = useState('ALL');
   const [quickSearch, setQuickSearch] = useState('');
 
-  // Status renderer (Authentic PayPal Resolution Center badge - vertically centered)
+  // Status Cell Renderer
   const StatusCellRenderer = (params) => {
     const status = params.value || '';
+    const approvalState = params.data?.approval_state;
     let badge = null;
 
-    if (status === 'WAITING_FOR_SELLER_RESPONSE') {
-      badge = (
-        <span className="paypal-badge badge-waiting">
-          <Clock size={12} />
-          Needs response
-        </span>
-      );
-    } else if (status === 'UNDER_REVIEW') {
+    if (approvalState === 'submitted' || status === 'UNDER_REVIEW') {
       badge = (
         <span className="paypal-badge badge-review">
           <CheckCircle2 size={12} />
           Under review
         </span>
       );
-    } else if (status === 'RESOLVED') {
+    } else if (approvalState === 'rejected' || status === 'RESOLVED') {
       badge = (
         <span className="paypal-badge badge-resolved">
           <CheckCircle2 size={12} />
           Resolved
+        </span>
+      );
+    } else if (status === 'WAITING_FOR_SELLER_RESPONSE' || status === 'PENDING_REVIEW' || approvalState === 'pending') {
+      badge = (
+        <span className="paypal-badge badge-waiting">
+          <Clock size={12} />
+          Needs response
         </span>
       );
     } else {
@@ -57,8 +56,12 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
     );
   };
 
-  // Case ID and Transaction details renderer (no clipping, clean 2-line layout)
+  // Case ID and Transaction details renderer
   const CaseIdCellRenderer = (params) => {
+    const caseId = params.value || params.data?.id || params.data?.dispute_id;
+    const orderId = params.data?.order?.id || params.data?.order_id || 'ORD-001';
+    const buyerName = params.data?.buyer?.name || params.data?.order?.shipping?.signed_by || 'Customer';
+
     return (
       <div style={{
         display: 'flex',
@@ -74,7 +77,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           fontSize: '0.88rem',
           letterSpacing: '-0.01em'
         }}>
-          {params.value}
+          {caseId}
         </div>
         <div style={{
           fontSize: '0.74rem',
@@ -84,7 +87,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           overflow: 'hidden',
           textOverflow: 'ellipsis'
         }}>
-          Order {params.data?.order_id || 'ORD-001'} • {params.data?.buyer?.name || 'Customer'}
+          Order {orderId} • {buyerName}
         </div>
       </div>
     );
@@ -93,12 +96,12 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
   // Amount renderer
   const AmountCellRenderer = (params) => {
     const data = params.data;
-    const currency = data?.dispute_amount?.currency || 'USD';
-    const value = parseFloat(data?.dispute_amount?.value || '0').toFixed(2);
+    const currency = data?.amount?.currency || data?.dispute_amount?.currency || 'USD';
+    const val = parseFloat(data?.amount?.value || data?.dispute_amount?.value || '0').toFixed(2);
     return (
       <div style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}>
         <span style={{ fontWeight: 800, color: '#003087', fontSize: '0.98rem' }}>
-          ${value}{' '}
+          ${val}{' '}
           <span style={{ color: '#64748b', fontSize: '0.74rem', fontWeight: 600 }}>{currency}</span>
         </span>
       </div>
@@ -112,11 +115,11 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
     let badgeBg = '#eff6ff';
     let textColor = '#005ea6';
 
-    if (reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED') {
+    if (reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED' || reason === 'ITEM_NOT_RECEIVED') {
       label = 'Item Not Received (INR)';
       badgeBg = '#eff6ff';
       textColor = '#005ea6';
-    } else if (reason === 'UNAUTHORISED_TRANSACTION') {
+    } else if (reason === 'UNAUTHORISED_TRANSACTION' || reason === 'UNAUTHORIZED') {
       label = 'Unauthorized Transaction';
       badgeBg = '#fff8e6';
       textColor = '#946300';
@@ -171,7 +174,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           overflow: 'hidden'
         }}>
           <div style={{
-            width: `${score}%`,
+            width: `${Math.min(100, Math.max(0, score))}%`,
             height: '100%',
             background: barColor,
             borderRadius: '999px'
@@ -202,12 +205,12 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
     const now = Date.now();
     const diffHours = Math.round((due - now) / (1000 * 60 * 60));
 
-    const isResolved = params.data?.status === 'RESOLVED' || params.data?.seller_approval?.approved;
+    const isResolved = params.data?.status === 'RESOLVED' || params.data?.approval_state === 'submitted' || params.data?.seller_approval?.approved;
     if (isResolved) {
       return (
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
           <span style={{ color: '#007b36', fontSize: '0.82rem', fontWeight: 700 }}>
-            ✓ Case Closed
+            ✓ Response Submitted
           </span>
         </div>
       );
@@ -253,7 +256,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
 
   // Action Button Renderer
   const ActionCellRenderer = (params) => {
-    const isSelected = selectedDispute?.dispute_id === params.data?.dispute_id;
+    const isSelected = (selectedDispute?.id || selectedDispute?.dispute_id) === (params.data?.id || params.data?.dispute_id);
     return (
       <div style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}>
         <button
@@ -271,13 +274,14 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
     );
   };
 
-  // Column definitions with generous minWidth to prevent ellipsis clipping
+  // Column definitions with robust value getters
   const columnDefs = useMemo(() => [
     {
       headerName: 'Status',
       field: 'status',
       width: 165,
       minWidth: 155,
+      valueGetter: (params) => params.data?.status || 'WAITING_FOR_SELLER_RESPONSE',
       cellRenderer: StatusCellRenderer,
       sortable: true,
       filter: true
@@ -287,15 +291,17 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
       field: 'dispute_id',
       minWidth: 230,
       flex: 1.2,
+      valueGetter: (params) => params.data?.dispute_id || params.data?.id,
       cellRenderer: CaseIdCellRenderer,
       sortable: true,
       filter: true
     },
     {
       headerName: 'Disputed Amount',
-      field: 'dispute_amount.value',
+      field: 'amount.value',
       width: 175,
       minWidth: 165,
+      valueGetter: (params) => parseFloat(params.data?.amount?.value || params.data?.dispute_amount?.value || '0'),
       cellRenderer: AmountCellRenderer,
       sortable: true,
       filter: 'agNumberColumnFilter'
@@ -305,6 +311,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
       field: 'reason',
       minWidth: 235,
       flex: 1.2,
+      valueGetter: (params) => params.data?.reason,
       cellRenderer: ReasonCellRenderer,
       sortable: true,
       filter: true
@@ -314,15 +321,17 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
       field: 'win_score',
       width: 200,
       minWidth: 190,
+      valueGetter: (params) => params.data?.win_score || 0,
       cellRenderer: WinScoreCellRenderer,
       sortable: true,
       filter: 'agNumberColumnFilter'
     },
     {
       headerName: 'Response Due Date',
-      field: 'seller_response_due_date',
+      field: 'respond_by',
       width: 200,
       minWidth: 190,
+      valueGetter: (params) => params.data?.respond_by || params.data?.seller_response_due_date,
       cellRenderer: DeadlineCellRenderer,
       sortable: true,
       filter: true
@@ -348,27 +357,39 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
     let list = [...disputes];
 
     if (filterType === 'WAITING') {
-      list = list.filter(d => d.status === 'WAITING_FOR_SELLER_RESPONSE');
+      list = list.filter(d => 
+        d.status === 'WAITING_FOR_SELLER_RESPONSE' || 
+        d.status === 'PENDING_REVIEW' || 
+        d.approval_state === 'pending'
+      );
     } else if (filterType === 'URGENT') {
       const now = Date.now();
       list = list.filter(d => {
-        if (d.status === 'RESOLVED') return false;
-        const due = new Date(d.seller_response_due_date).getTime();
+        if (d.status === 'RESOLVED' || d.approval_state === 'submitted') return false;
+        const dueStr = d.respond_by || d.seller_response_due_date;
+        if (!dueStr) return false;
+        const due = new Date(dueStr).getTime();
         const diffHours = (due - now) / (1000 * 60 * 60);
         return diffHours <= 24;
       });
     } else if (filterType === 'RESOLVED') {
-      list = list.filter(d => d.status === 'RESOLVED' || d.seller_approval?.approved);
+      list = list.filter(d => 
+        d.status === 'RESOLVED' || 
+        d.approval_state === 'submitted' || 
+        d.approval_state === 'rejected' ||
+        d.seller_approval?.approved
+      );
     }
 
     if (quickSearch.trim()) {
       const q = quickSearch.toLowerCase();
-      list = list.filter(d =>
-        d.dispute_id?.toLowerCase().includes(q) ||
-        d.order_id?.toLowerCase().includes(q) ||
-        d.buyer?.name?.toLowerCase().includes(q) ||
-        d.reason?.toLowerCase().includes(q)
-      );
+      list = list.filter(d => {
+        const id = (d.id || d.dispute_id || '').toLowerCase();
+        const orderId = (d.order?.id || d.order_id || '').toLowerCase();
+        const buyer = (d.buyer?.name || d.order?.shipping?.signed_by || '').toLowerCase();
+        const reason = (d.reason || '').toLowerCase();
+        return id.includes(q) || orderId.includes(q) || buyer.includes(q) || reason.includes(q);
+      });
     }
 
     return list;
@@ -377,6 +398,12 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
   const onRowClicked = useCallback((event) => {
     onSelectDispute(event.data);
   }, [onSelectDispute]);
+
+  const waitingCount = disputes.filter(d => 
+    d.status === 'WAITING_FOR_SELLER_RESPONSE' || 
+    d.status === 'PENDING_REVIEW' || 
+    d.approval_state === 'pending'
+  ).length;
 
   return (
     <div className="paypal-card" style={{ padding: '24px' }}>
@@ -424,7 +451,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
               transition: 'all 0.15s'
             }}
           >
-            Requires Response ({disputes.filter(d => d.status === 'WAITING_FOR_SELLER_RESPONSE').length})
+            Requires Response ({waitingCount})
           </button>
 
           <button
@@ -490,7 +517,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
         </div>
       </div>
 
-      {/* AG Grid Container with Height accommodating 68px rows cleanly */}
+      {/* AG Grid Container */}
       <div className="ag-theme-alpine" style={{ width: '100%', height: '480px' }}>
         <AgGridReact
           ref={gridRef}

@@ -6,15 +6,17 @@ import {
   Calendar,
   DollarSign,
   ChevronRight,
-  ShieldAlert
+  ShieldAlert,
+  ArrowRight
 } from 'lucide-react';
 
 export default function DeadlineTimeline({ disputes, onSelectDispute }) {
   const now = Date.now();
 
   const processed = (disputes || []).map(d => {
-    const isResolved = d.status === 'RESOLVED' || d.seller_approval?.approved;
-    const dueTime = new Date(d.seller_response_due_date).getTime();
+    const isResolved = d.status === 'RESOLVED' || d.approval_state === 'submitted' || d.approval_state === 'rejected' || d.seller_approval?.approved;
+    const dueStr = d.respond_by || d.seller_response_due_date || new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+    const dueTime = new Date(dueStr).getTime();
     const diffHours = Math.round((dueTime - now) / (1000 * 60 * 60));
 
     let urgency = 'normal';
@@ -22,8 +24,20 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
     else if (diffHours <= 24) urgency = 'urgent';
     else if (diffHours <= 72) urgency = 'warning';
 
+    const caseId = d.id || d.dispute_id;
+    const amountVal = parseFloat(d.amount?.value || d.dispute_amount?.value || '0').toFixed(2);
+    const amountCurr = d.amount?.currency || d.dispute_amount?.currency || 'USD';
+    const buyerName = d.buyer?.name || d.order?.shipping?.signed_by || 'Customer';
+    const orderId = d.order?.id || d.order_id || 'ORD-001';
+
     return {
       ...d,
+      caseId,
+      amountVal,
+      amountCurr,
+      buyerName,
+      orderId,
+      dueStr,
       diffHours,
       urgency,
       isResolved
@@ -40,7 +54,7 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
   const warningCount = sorted.filter(d => d.urgency === 'warning').length;
   const totalAtRisk = sorted
     .filter(d => !d.isResolved)
-    .reduce((acc, d) => acc + parseFloat(d.dispute_amount?.value || 0), 0);
+    .reduce((acc, d) => acc + parseFloat(d.amountVal || 0), 0);
 
   return (
     <div className="paypal-card" style={{ padding: '28px', borderTop: '4px solid #003087' }}>
@@ -58,7 +72,7 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#003087' }}>
-              Response Deadline Radar (Bryntum Timeline)
+              Response Deadline Radar
             </h2>
             <span style={{
               background: '#e6f2ff',
@@ -148,7 +162,7 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
 
           return (
             <div
-              key={dispute.dispute_id}
+              key={dispute.caseId}
               onClick={() => onSelectDispute(dispute)}
               style={{
                 background: bgHighlight,
@@ -196,37 +210,39 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontWeight: 800, color: '#003087', fontSize: '0.95rem' }}>
-                      {dispute.dispute_id}
+                      {dispute.caseId}
                     </span>
-                    <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                      (Order {dispute.order_id})
+                    <span style={{
+                      fontSize: '0.72rem',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-pill)',
+                      fontWeight: 600,
+                      background: '#f1f5f9',
+                      color: '#475569'
+                    }}>
+                      Order {dispute.orderId}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.82rem', color: '#334155', marginTop: '2px' }}>
-                    {dispute.reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED'
-                      ? 'Item Not Received'
-                      : dispute.reason === 'UNAUTHORISED_TRANSACTION'
-                      ? 'Unauthorized Transaction'
-                      : 'Not As Described'} • <strong style={{ color: '#003087' }}>${parseFloat(dispute.dispute_amount?.value || '0').toFixed(2)} USD</strong>
+                  <div style={{ fontSize: '0.8rem', color: '#687173', marginTop: '2px' }}>
+                    {dispute.reason} • Buyer: <strong style={{ color: '#1e293b' }}>{dispute.buyerName}</strong>
                   </div>
                 </div>
               </div>
 
-              {/* Middle: Progress Bar */}
-              <div style={{ flex: 1, minWidth: '220px', maxWidth: '380px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '6px' }}>
-                  <span style={{ color: '#64748b' }}>Remaining Time Window:</span>
+              {/* Center Timeline Gauge Bar */}
+              <div style={{ flex: 1, minWidth: '240px', maxWidth: '420px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '6px' }}>
+                  <span style={{ color: '#687173' }}>
+                    Deadline: <strong>{new Date(dispute.dueStr).toLocaleDateString()} ({new Date(dispute.dueStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</strong>
+                  </span>
                   <span style={{
                     fontWeight: 700,
-                    color: dispute.urgency === 'urgent' ? '#dc2626' : dispute.urgency === 'warning' ? '#b45309' : '#0284c7'
+                    color: dispute.urgency === 'urgent' ? '#dc2626' : dispute.urgency === 'warning' ? '#d97706' : '#16a34a'
                   }}>
-                    {dispute.isResolved
-                      ? 'Closed / Submitted'
-                      : dispute.diffHours <= 0
-                      ? 'Overdue'
-                      : `${dispute.diffHours} hours remaining`}
+                    {dispute.isResolved ? 'Resolved' : dispute.diffHours <= 0 ? 'Overdue' : `${dispute.diffHours} hours remaining`}
                   </span>
                 </div>
+
                 <div style={{
                   height: '8px',
                   background: '#e2e8f0',
@@ -236,39 +252,36 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
                   <div style={{
                     width: `${remainingPct}%`,
                     height: '100%',
-                    background: dispute.isResolved
-                      ? '#16a34a'
-                      : dispute.urgency === 'urgent'
-                      ? '#ef4444'
-                      : dispute.urgency === 'warning'
-                      ? '#f59e0b'
-                      : '#0070ba',
-                    borderRadius: '999px'
+                    background: dispute.isResolved ? '#10b981' : dispute.urgency === 'urgent' ? '#ef4444' : dispute.urgency === 'warning' ? '#f59e0b' : '#0284c7',
+                    borderRadius: '999px',
+                    transition: 'width 0.3s'
                   }} />
                 </div>
               </div>
 
-              {/* Right: Due Date & Action */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ textAlign: 'right', fontSize: '0.8rem' }}>
-                  <div style={{ color: '#687173', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 600 }}>DUE DATE</div>
-                  <div style={{ color: '#0f172a', fontWeight: 700 }}>
-                    {new Date(dispute.seller_response_due_date).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+              {/* Right: Amount & Action Link */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#003087' }}>
+                    ${dispute.amountVal}{' '}
+                    <span style={{ fontSize: '0.74rem', color: '#64748b' }}>{dispute.amountCurr}</span>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: dispute.win_score >= 70 ? '#059669' : '#d97706', fontWeight: 700 }}>
+                    {dispute.win_score}% win probability
                   </div>
                 </div>
 
-                <button
-                  className="btn btn-paypal-outline"
-                  style={{ padding: '6px 14px', fontSize: '0.78rem' }}
-                >
-                  View Case
-                  <ChevronRight size={13} />
-                </button>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: '#0070ba',
+                  fontWeight: 700,
+                  fontSize: '0.82rem'
+                }}>
+                  Review
+                  <ArrowRight size={14} />
+                </div>
               </div>
             </div>
           );

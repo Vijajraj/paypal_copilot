@@ -7,12 +7,12 @@ import RestockChannel3 from './RestockChannel3.jsx';
 import AuditTrailModal from './AuditTrailModal.jsx';
 import SimulateDisputeModal from './SimulateDisputeModal.jsx';
 import { initialMockDisputes } from './initialMockData.js';
-import { api } from './apiClient.js';
+import { api, normalizeDispute } from './apiClient.js';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('disputes'); // 'disputes' | 'timeline' | 'restock'
-  const [disputes, setDisputes] = useState(initialMockDisputes);
-  const [selectedDispute, setSelectedDispute] = useState(initialMockDisputes[0]);
+  const [disputes, setDisputes] = useState(initialMockDisputes.map(normalizeDispute));
+  const [selectedDispute, setSelectedDispute] = useState(initialMockDisputes.map(normalizeDispute)[0]);
   const [isMockMode, setIsMockMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -34,8 +34,9 @@ export default function App() {
 
   const loadDisputes = async () => {
     if (isMockMode) {
-      setDisputes(initialMockDisputes);
-      if (!selectedDispute) setSelectedDispute(initialMockDisputes[0]);
+      const list = initialMockDisputes.map(normalizeDispute);
+      setDisputes(list);
+      if (!selectedDispute) setSelectedDispute(list[0]);
       setLoading(false);
       return;
     }
@@ -47,14 +48,16 @@ export default function App() {
         setDisputes(res.disputes);
         setSelectedDispute(prev => {
           if (!prev) return res.disputes[0];
-          const matched = res.disputes.find(d => (d.dispute_id === prev.dispute_id || d.id === prev.id));
+          const prevId = prev.id || prev.dispute_id;
+          const matched = res.disputes.find(d => (d.id === prevId || d.dispute_id === prevId));
           return matched || res.disputes[0];
         });
       }
     } catch (err) {
       console.warn('Backend API unavailable, using mock data:', err);
-      setDisputes(initialMockDisputes);
-      if (!selectedDispute) setSelectedDispute(initialMockDisputes[0]);
+      const list = initialMockDisputes.map(normalizeDispute);
+      setDisputes(list);
+      if (!selectedDispute) setSelectedDispute(list[0]);
     } finally {
       setLoading(false);
     }
@@ -80,43 +83,11 @@ export default function App() {
   };
 
   // Handle 1-Click Human Approval
-  const handleApprove = async (disputeId, approverName) => {
+  const handleApprove = async (disputeId, approverName, approvalSecret) => {
     try {
-      if (isMockMode) {
-        setDisputes(prev => prev.map(d => {
-          if (d.dispute_id === disputeId || d.id === disputeId) {
-            return {
-              ...d,
-              status: 'UNDER_REVIEW',
-              approval_state: 'submitted',
-              seller_approval: {
-                approved: true,
-                approved_at: new Date().toISOString(),
-                approver_id: approverName,
-                rejection_reason: null
-              }
-            };
-          }
-          return d;
-        }));
-        setSelectedDispute(prev => ({
-          ...prev,
-          status: 'UNDER_REVIEW',
-          approval_state: 'submitted',
-          seller_approval: {
-            approved: true,
-            approved_at: new Date().toISOString(),
-            approver_id: approverName,
-            rejection_reason: null
-          }
-        }));
-        showToast(`Dispute ${disputeId} approved and submitted to PayPal!`);
-        return;
-      }
-
-      const res = await api.approveDispute(disputeId, approverName);
+      const res = await api.approveDispute(disputeId, approverName, approvalSecret);
       if (res.dispute) {
-        setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? res.dispute : d));
+        setDisputes(prev => prev.map(d => ((d.id === disputeId || d.dispute_id === disputeId) ? res.dispute : d)));
         setSelectedDispute(res.dispute);
         showToast(`Dispute ${disputeId} approved & submitted with audit hash ${res.audit?.hash?.substring(0, 8)}...`);
       }
@@ -128,43 +99,9 @@ export default function App() {
   // Handle Reject/Concede Claim
   const handleReject = async (disputeId, reason) => {
     try {
-      if (isMockMode) {
-        setDisputes(prev => prev.map(d => {
-          if (d.dispute_id === disputeId || d.id === disputeId) {
-            return {
-              ...d,
-              status: 'RESOLVED',
-              approval_state: 'rejected',
-              seller_approval: {
-                approved: false,
-                conceded: true,
-                approved_at: new Date().toISOString(),
-                approver_id: 'seller_merchant',
-                rejection_reason: reason
-              }
-            };
-          }
-          return d;
-        }));
-        setSelectedDispute(prev => ({
-          ...prev,
-          status: 'RESOLVED',
-          approval_state: 'rejected',
-          seller_approval: {
-            approved: false,
-            conceded: true,
-            approved_at: new Date().toISOString(),
-            approver_id: 'seller_merchant',
-            rejection_reason: reason
-          }
-        }));
-        showToast(`Claim conceded and buyer refunded.`);
-        return;
-      }
-
       const res = await api.rejectDispute(disputeId, reason);
       if (res.dispute) {
-        setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? res.dispute : d));
+        setDisputes(prev => prev.map(d => ((d.id === disputeId || d.dispute_id === disputeId) ? res.dispute : d)));
         setSelectedDispute(res.dispute);
         showToast(`Dispute ${disputeId} claim conceded.`);
       }
@@ -175,27 +112,27 @@ export default function App() {
 
   // Handle Evidence Save
   const handleSaveEvidence = async (disputeId, text) => {
-    if (isMockMode) {
-      setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? { ...d, ai_drafted_evidence: text } : d));
-      setSelectedDispute(prev => ({ ...prev, ai_drafted_evidence: text }));
-      return;
-    }
-    const res = await api.updateEvidence(disputeId, text);
-    if (res.dispute) {
-      setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? res.dispute : d));
-      setSelectedDispute(res.dispute);
+    try {
+      const res = await api.updateEvidence(disputeId, text);
+      if (res.dispute) {
+        setDisputes(prev => prev.map(d => ((d.id === disputeId || d.dispute_id === disputeId) ? res.dispute : d)));
+        setSelectedDispute(res.dispute);
+        showToast('Evidence statement saved.');
+      }
+    } catch (err) {
+      alert('Save error: ' + err.message);
     }
   };
 
   // Handle Redraft Evidence with Groq AI
-  const handleRedraft = async (disputeId, merchantNotes = '') => {
+  const handleRedraft = async (disputeId, notes = '') => {
     try {
       showToast('Analyzing Elastic precedents & generating fresh draft with Groq AI...');
-      const res = await api.redraftEvidence(disputeId, merchantNotes);
+      const res = await api.redraftEvidence(disputeId, notes);
       if (res.dispute) {
-        setDisputes(prev => prev.map(d => (d.dispute_id === disputeId || d.id === disputeId) ? res.dispute : d));
+        setDisputes(prev => prev.map(d => ((d.id === disputeId || d.dispute_id === disputeId) ? res.dispute : d)));
         setSelectedDispute(res.dispute);
-        showToast('Fresh Groq AI evidence response generated!');
+        showToast('Fresh Groq AI defense response generated!');
       }
     } catch (err) {
       alert('Redraft error: ' + err.message);
@@ -204,13 +141,18 @@ export default function App() {
 
   // Handle New Dispute Simulated
   const handleSimulated = (newDispute) => {
-    setDisputes(prev => [newDispute, ...prev]);
-    setSelectedDispute(newDispute);
+    const normalized = normalizeDispute(newDispute);
+    setDisputes(prev => [normalized, ...prev]);
+    setSelectedDispute(normalized);
     setActiveTab('disputes');
-    showToast(`Incoming PayPal dispute ${newDispute.dispute_id || newDispute.id} analyzed! Win score: ${newDispute.win_score}%`);
+    showToast(`Incoming dispute ${normalized.id || normalized.dispute_id} analyzed! Win score: ${normalized.win_score}%`);
   };
 
-  const pendingCount = disputes.filter(d => (d.status === 'WAITING_FOR_SELLER_RESPONSE' || d.approval_state === 'pending')).length;
+  const pendingCount = disputes.filter(d => (
+    d.status === 'WAITING_FOR_SELLER_RESPONSE' || 
+    d.status === 'PENDING_REVIEW' || 
+    d.approval_state === 'pending'
+  )).length;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f5f7fa' }}>
@@ -300,7 +242,7 @@ export default function App() {
 
       {showAuditModal && (
         <AuditTrailModal
-          disputeId={selectedDispute?.dispute_id || selectedDispute?.id}
+          disputeId={selectedDispute?.id || selectedDispute?.dispute_id}
           onClose={() => setShowAuditModal(false)}
         />
       )}

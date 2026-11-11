@@ -7,7 +7,8 @@ import {
   Lock,
   ShoppingCart,
   Sparkles,
-  DollarSign
+  DollarSign,
+  Info
 } from 'lucide-react';
 import { api } from './apiClient.js';
 
@@ -17,6 +18,7 @@ export default function RestockChannel3() {
   const [loading, setLoading] = useState(true);
   const [orderingItem, setOrderingItem] = useState(null);
   const [orderSuccess, setOrderSuccess] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     loadInventory();
@@ -31,7 +33,7 @@ export default function RestockChannel3() {
         setSpendingLimit(res.data.spending_limit_usd || 500);
       }
     } catch (err) {
-      console.warn('Failed to fetch restock inventory, using local fallback:', err);
+      console.warn('Failed to fetch restock inventory:', err);
     } finally {
       setLoading(false);
     }
@@ -42,13 +44,15 @@ export default function RestockChannel3() {
     const estCost = item.unit_cost_usd * qty;
 
     if (estCost > spendingLimit) {
-      alert(`Guardrail block: Order total ($${estCost}) exceeds allowed spending limit of $${spendingLimit}.`);
+      setErrorMessage(`Guardrail Block: Order total ($${estCost.toFixed(2)}) exceeds autonomous spending limit of $${spendingLimit.toFixed(2)}.`);
+      setTimeout(() => setErrorMessage(''), 5000);
       return;
     }
 
     try {
       setOrderingItem(item.id);
-      const res = await api.orderRestock(item.id, qty, 'seller_admin_1');
+      setErrorMessage('');
+      const res = await api.orderRestock(item.id, qty, 'Authorized Warehouse Manager');
       setOrderSuccess({
         itemName: item.name,
         qty,
@@ -58,7 +62,8 @@ export default function RestockChannel3() {
       await loadInventory();
       setTimeout(() => setOrderSuccess(null), 6000);
     } catch (err) {
-      alert('Order failed: ' + err.message);
+      setErrorMessage('Order blocked: ' + err.message);
+      setTimeout(() => setErrorMessage(''), 5000);
     } finally {
       setOrderingItem(null);
     }
@@ -95,174 +100,183 @@ export default function RestockChannel3() {
                 Channel3 Merchant Supply Restock
               </h2>
               <p style={{ fontSize: '0.84rem', color: '#475569' }}>
-                Predictive supply replenishments to prevent order fulfillment disputes
+                Autonomous supply replenishment to prevent order fulfillment disputes and shipping delays
               </p>
             </div>
           </div>
         </div>
 
-        {/* Spending Limit Guardrail */}
+        {/* Guardrail Policy Tag */}
         <div style={{
-          background: '#f8fafc',
-          border: '1.5px solid #cbd5e1',
-          borderRadius: 'var(--radius-md)',
-          padding: '10px 20px',
           display: 'flex',
           alignItems: 'center',
-          gap: '14px'
+          gap: '12px',
+          background: '#faf5ff',
+          border: '1.5px solid #d8b4fe',
+          borderRadius: 'var(--radius-md)',
+          padding: '10px 18px'
         }}>
-          <Lock size={20} color="#003087" />
+          <Lock size={18} color="#9333ea" />
           <div>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
-              Autonomous Spend Limit
+            <div style={{ fontSize: '0.7rem', color: '#7e22ce', fontWeight: 800, textTransform: 'uppercase' }}>
+              Autonomous Spend Ceiling
             </div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#003087' }}>
-              ${spendingLimit.toFixed(2)}{' '}
-              <span style={{ fontSize: '0.75rem', color: '#007b36', fontWeight: 700 }}>Guardrail Active</span>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#6b21a8' }}>
+              ${spendingLimit.toFixed(2)} USD Cap
             </div>
           </div>
         </div>
       </div>
 
+      {/* Notifications */}
       {orderSuccess && (
         <div style={{
           background: '#ecfdf5',
           border: '1px solid #a7f3d0',
-          borderRadius: 'var(--radius-md)',
-          padding: '14px 20px',
+          borderRadius: '8px',
+          padding: '14px 18px',
           marginBottom: '20px',
           display: 'flex',
           alignItems: 'center',
           gap: '12px'
-        }}>
-          <CheckCircle2 size={22} color="#059669" />
-          <div>
-            <div style={{ color: '#065f46', fontWeight: 800, fontSize: '0.92rem' }}>
-              Restock Purchase Confirmed • Order {orderSuccess.orderId}
-            </div>
-            <div style={{ color: '#047857', fontSize: '0.82rem' }}>
-              Ordered {orderSuccess.qty} units of {orderSuccess.itemName} for ${orderSuccess.total.toFixed(2)}. Chained to SHA-256 audit ledger.
-            </div>
+        }} className="animate-fade">
+          <CheckCircle2 size={20} color="#059669" />
+          <div style={{ fontSize: '0.86rem', color: '#065f46' }}>
+            <strong>Dispatched:</strong> Order <strong>{orderSuccess.orderId}</strong> for {orderSuccess.qty}x {orderSuccess.itemName} (${orderSuccess.total.toFixed(2)} USD) successfully submitted.
           </div>
         </div>
       )}
 
-      {/* Inventory Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+      {errorMessage && (
+        <div style={{
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '8px',
+          padding: '14px 18px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }} className="animate-fade">
+          <AlertTriangle size={20} color="#dc2626" />
+          <div style={{ fontSize: '0.86rem', color: '#991b1b', fontWeight: 600 }}>
+            {errorMessage}
+          </div>
+        </div>
+      )}
+
+      {/* Grid of Restock Items */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        gap: '20px'
+      }}>
         {inventory.map(item => {
-          const isLow = item.current_stock <= item.safety_stock;
-          const totalCost = (item.unit_cost_usd * (item.recommended_order_qty || 1)).toFixed(2);
+          const isCritical = item.urgency === 'HIGH' || item.current_stock < item.safety_stock;
+          const orderTotal = (item.unit_cost_usd * item.recommended_order_qty).toFixed(2);
+          const exceedsCap = parseFloat(orderTotal) > spendingLimit;
 
           return (
             <div
               key={item.id}
               style={{
                 background: '#ffffff',
-                border: isLow ? '1.5px solid #fecdca' : '1px solid var(--border-light)',
+                border: isCritical ? '1.5px solid #fecdca' : '1px solid var(--border-light)',
                 borderRadius: 'var(--radius-md)',
                 padding: '20px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                gap: '14px',
                 boxShadow: 'var(--shadow-sm)'
               }}
             >
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <span style={{ fontSize: '0.74rem', color: '#687173', textTransform: 'uppercase', fontWeight: 700 }}>
-                      {item.category} • {item.id}
-                    </span>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#003087', marginTop: '2px' }}>
-                      {item.name}
-                    </h3>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    background: '#f1f5f9',
+                    color: '#475569',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontWeight: 700
+                  }}>
+                    {item.id}
+                  </span>
 
                   <span style={{
                     fontSize: '0.72rem',
-                    fontWeight: 700,
+                    fontWeight: 800,
                     padding: '3px 10px',
                     borderRadius: 'var(--radius-pill)',
-                    background: item.urgency === 'HIGH' ? '#fdf2f2' : '#fff8e6',
-                    color: item.urgency === 'HIGH' ? '#d92d20' : '#946300',
-                    border: `1px solid ${item.urgency === 'HIGH' ? '#fecdca' : '#ffe399'}`
+                    background: item.urgency === 'HIGH' ? '#fef2f2' : item.urgency === 'MEDIUM' ? '#fffbeb' : '#f0fdf4',
+                    color: item.urgency === 'HIGH' ? '#b91c1c' : item.urgency === 'MEDIUM' ? '#b45309' : '#15803d',
+                    border: `1px solid ${item.urgency === 'HIGH' ? '#fecaca' : item.urgency === 'MEDIUM' ? '#fde68a' : '#bbf7d0'}`
                   }}>
-                    {item.urgency} URGENCY
+                    {item.urgency === 'HIGH' ? 'CRITICAL RESTOCK' : item.urgency === 'MEDIUM' ? 'REPLENISH' : 'OPTIMAL'}
                   </span>
                 </div>
 
-                {/* Stock Stats */}
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#003087', marginBottom: '8px' }}>
+                  {item.name}
+                </h3>
+
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  margin: '14px 0',
-                  padding: '12px 14px',
+                  padding: '8px 12px',
                   background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '0.84rem'
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  marginBottom: '12px'
                 }}>
                   <div>
-                    <div style={{ color: '#687173', fontSize: '0.72rem', fontWeight: 600 }}>Current Stock</div>
-                    <div style={{ fontWeight: 800, color: isLow ? '#d92d20' : '#0f172a', fontSize: '1.05rem' }}>
-                      {item.current_stock} units
-                    </div>
+                    <span style={{ color: '#687173' }}>In Stock: </span>
+                    <strong style={{ color: item.current_stock < item.safety_stock ? '#dc2626' : '#16a34a' }}>
+                      {item.current_stock}
+                    </strong>
+                    <span style={{ color: '#94a3b8' }}> / {item.safety_stock} safe</span>
                   </div>
                   <div>
-                    <div style={{ color: '#687173', fontSize: '0.72rem', fontWeight: 600 }}>Safety Stock</div>
-                    <div style={{ fontWeight: 600, color: '#64748b', fontSize: '1.05rem' }}>
-                      {item.safety_stock} units
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: '#687173', fontSize: '0.72rem', fontWeight: 600 }}>Unit Cost</div>
-                    <div style={{ fontWeight: 800, color: '#003087', fontSize: '1.05rem' }}>
-                      ${item.unit_cost_usd.toFixed(2)}
-                    </div>
+                    <span style={{ color: '#687173' }}>Unit Cost: </span>
+                    <strong style={{ color: '#0f172a' }}>${item.unit_cost_usd.toFixed(2)}</strong>
                   </div>
                 </div>
 
-                {/* AI Rationale */}
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
-                  fontSize: '0.8rem',
-                  color: '#334155',
-                  background: '#eff6ff',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #bfdbfe'
+                  fontSize: '0.78rem',
+                  color: '#475569',
+                  lineHeight: '1.45',
+                  marginBottom: '16px',
+                  background: '#faf5ff',
+                  border: '1px solid #f3e8ff',
+                  padding: '8px 10px',
+                  borderRadius: '6px'
                 }}>
-                  <Sparkles size={15} color="#0070ba" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span>{item.ai_recommendation_reason}</span>
+                  <strong style={{ color: '#7e22ce' }}>AI Recommendation: </strong>
+                  {item.ai_recommendation_reason}
                 </div>
               </div>
 
-              {/* Order Button */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '14px',
-                borderTop: '1px solid var(--border-light)'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.74rem', color: '#687173' }}>Order Qty: {item.recommended_order_qty}</div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#003087' }}>
-                    ${totalCost} USD
-                  </div>
+              <div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '10px',
+                  fontSize: '0.82rem'
+                }}>
+                  <span style={{ color: '#64748b' }}>Order Qty: <strong>{item.recommended_order_qty} units</strong></span>
+                  <span style={{ fontWeight: 800, color: '#003087' }}>Est. Total: ${orderTotal}</span>
                 </div>
 
                 <button
                   onClick={() => handleOrder(item)}
-                  disabled={orderingItem === item.id || item.recommended_order_qty === 0}
+                  disabled={orderingItem === item.id || item.recommended_order_qty <= 0}
                   className="btn btn-paypal-gold"
-                  style={{ padding: '7px 18px', fontSize: '0.84rem' }}
+                  style={{ width: '100%', padding: '9px 16px', fontSize: '0.86rem' }}
                 >
                   <ShoppingCart size={15} />
-                  {orderingItem === item.id ? 'Ordering...' : 'Order Restock'}
+                  {orderingItem === item.id ? 'Dispatching...' : `Order ${item.recommended_order_qty} Units`}
                 </button>
               </div>
             </div>

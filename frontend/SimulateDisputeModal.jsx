@@ -13,29 +13,31 @@ import { api } from './apiClient.js';
 export default function SimulateDisputeModal({ onClose, onSimulated }) {
   const [loading, setLoading] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('high_value');
-  const [customReason, setCustomReason] = useState('MERCHANDISE_OR_SERVICE_NOT_RECEIVED');
+  const [customReason, setCustomReason] = useState('ITEM_NOT_RECEIVED');
   const [customAmount, setCustomAmount] = useState('499.00');
   const [customItem, setCustomItem] = useState('MacBook Pro M3 USB-C Docking Station');
   const [customBuyer, setCustomBuyer] = useState('Alexander Wright');
+  const [customCarrier, setCustomCarrier] = useState('UPS');
+  const [customDueHours, setCustomDueHours] = useState(48);
 
   const presets = [
     {
       id: 'high_value',
       title: 'High-Value Item Not Received ($849.50)',
-      reason: 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED',
+      reason: 'ITEM_NOT_RECEIVED',
       amount: '849.50',
-      item: 'Sony Alpha a7 IV Camera Body',
+      item: 'Sony Alpha a7 IV Full-Frame Camera',
       buyer: 'Marcus Vance',
       carrier: 'UPS',
       dueHours: 48,
-      desc: 'Tests high-value signature requirement, KERNEL carrier proof, and Elastic precedent matching.'
+      desc: 'Tests high-value adult signature requirement, KERNEL carrier proof, and Elastic precedent matching.'
     },
     {
       id: 'urgent',
       title: 'URGENT Deadline (< 18 Hours Left)',
-      reason: 'UNAUTHORISED_TRANSACTION',
+      reason: 'UNAUTHORIZED',
       amount: '189.00',
-      item: 'AirPods Max Silver',
+      item: 'AirPods Max Silver (Active Noise Cancellation)',
       buyer: 'Samantha Fox',
       carrier: 'FedEx',
       dueHours: 16,
@@ -65,8 +67,8 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
           amount: customAmount,
           item_name: customItem,
           buyer_name: customBuyer,
-          carrier: 'UPS',
-          due_hours: 48
+          carrier: customCarrier,
+          due_hours: Number(customDueHours) || 48
         };
       } else {
         const p = presets.find(x => x.id === selectedPreset);
@@ -100,28 +102,28 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          marginBottom: '20px',
           paddingBottom: '16px',
-          borderBottom: '1px solid var(--border-light)',
-          marginBottom: '20px'
+          borderBottom: '1px solid var(--border-light)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: '40px',
-              height: '40px',
+              width: '42px',
+              height: '42px',
               borderRadius: '50%',
-              background: '#e0f2fe',
+              background: '#fef9c3',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <Sparkles size={22} color="#0070ba" />
+              <Sparkles size={22} color="#ca8a04" />
             </div>
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#003087' }}>
-                Simulate PayPal Webhook Dispute
+                Simulate PayPal Dispute Webhook
               </h2>
-              <p style={{ fontSize: '0.8rem', color: '#475569' }}>
-                Instant test harness for live demos and hackathon judging
+              <p style={{ fontSize: '0.82rem', color: '#475569' }}>
+                Triggers an incoming customer dispute event to demonstrate autonomous agent defense drafting
               </p>
             </div>
           </div>
@@ -140,137 +142,150 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
           </button>
         </div>
 
-        {/* Preset Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-          {presets.map(p => (
+        {/* Preset Cards Selection */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '10px' }}>
+            Choose a Demo Scenario Preset:
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {presets.map(p => (
+              <div
+                key={p.id}
+                onClick={() => setSelectedPreset(p.id)}
+                style={{
+                  background: selectedPreset === p.id ? '#eff6ff' : '#ffffff',
+                  border: `1.5px solid ${selectedPreset === p.id ? '#0070ba' : 'var(--border-light)'}`,
+                  borderRadius: 'var(--radius-md)',
+                  padding: '14px 16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontWeight: 700, color: '#003087', fontSize: '0.9rem' }}>
+                    {p.title}
+                  </span>
+                  <span style={{
+                    fontSize: '0.74rem',
+                    background: '#f1f5f9',
+                    color: '#475569',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-pill)',
+                    fontWeight: 600
+                  }}>
+                    {p.carrier} • {p.dueHours}h
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: '1.4' }}>
+                  {p.desc}
+                </p>
+              </div>
+            ))}
+
+            {/* Custom Scenario Option */}
             <div
-              key={p.id}
-              onClick={() => setSelectedPreset(p.id)}
+              onClick={() => setSelectedPreset('custom')}
               style={{
-                background: selectedPreset === p.id ? '#eff6ff' : '#f8fafc',
-                border: selectedPreset === p.id ? '2px solid #0070ba' : '1px solid var(--border-light)',
+                background: selectedPreset === 'custom' ? '#eff6ff' : '#ffffff',
+                border: `1.5px solid ${selectedPreset === 'custom' ? '#0070ba' : 'var(--border-light)'}`,
                 borderRadius: 'var(--radius-md)',
-                padding: '14px 18px',
-                cursor: 'pointer',
-                transition: 'all 0.15s'
+                padding: '14px 16px',
+                cursor: 'pointer'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 800, color: '#003087', fontSize: '0.92rem' }}>
-                  {p.title}
-                </span>
-                <span style={{
-                  fontSize: '0.72rem',
-                  padding: '3px 10px',
-                  borderRadius: 'var(--radius-pill)',
-                  background: '#e2e8f0',
-                  color: '#475569',
-                  fontWeight: 700
-                }}>
-                  {p.carrier} • {p.dueHours}h deadline
-                </span>
+              <div style={{ fontWeight: 700, color: '#003087', fontSize: '0.9rem' }}>
+                Custom Parameters Scenario
               </div>
-              <p style={{ fontSize: '0.8rem', color: '#475569', marginTop: '4px' }}>
-                {p.desc}
+              <p style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                Specify custom buyer name, disputed amount, carrier, and item description.
               </p>
             </div>
-          ))}
-
-          {/* Custom option */}
-          <div
-            onClick={() => setSelectedPreset('custom')}
-            style={{
-              background: selectedPreset === 'custom' ? '#eff6ff' : '#f8fafc',
-              border: selectedPreset === 'custom' ? '2px solid #0070ba' : '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-md)',
-              padding: '14px 18px',
-              cursor: 'pointer'
-            }}
-          >
-            <span style={{ fontWeight: 800, color: '#003087', fontSize: '0.92rem' }}>
-              Custom Parameters
-            </span>
           </div>
         </div>
 
+        {/* Custom Input Fields (Visible when Custom Preset is active) */}
         {selectedPreset === 'custom' && (
           <div style={{
             background: '#f8fafc',
-            border: '1px solid var(--border-light)',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
             padding: '16px',
-            borderRadius: 'var(--radius-md)',
             marginBottom: '20px',
-            display: 'flex',
-            flexDirection: 'column',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
             gap: '12px'
           }}>
             <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#003087', display: 'block', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                 Dispute Reason:
               </label>
               <select
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: '#ffffff',
-                  border: '1.5px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '8px 12px',
-                  color: '#0f172a',
-                  fontSize: '0.84rem'
-                }}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.82rem' }}
               >
-                <option value="MERCHANDISE_OR_SERVICE_NOT_RECEIVED">Item Not Received (INR)</option>
-                <option value="UNAUTHORISED_TRANSACTION">Unauthorized Transaction</option>
-                <option value="NOT_AS_DESCRIBED">Significantly Not As Described (SNAD)</option>
+                <option value="ITEM_NOT_RECEIVED">Item Not Received (INR)</option>
+                <option value="UNAUTHORIZED">Unauthorized Transaction</option>
+                <option value="NOT_AS_DESCRIBED">Significantly Not As Described</option>
               </select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#003087', display: 'block', marginBottom: '4px' }}>
-                  Amount ($ USD):
-                </label>
-                <input
-                  type="text"
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  style={{
-                    width: '100%',
-                    background: '#ffffff',
-                    border: '1.5px solid #cbd5e1',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    color: '#0f172a',
-                    fontSize: '0.84rem'
-                  }}
-                />
-              </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                Disputed Amount (USD):
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.82rem' }}
+              />
+            </div>
 
-              <div>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#003087', display: 'block', marginBottom: '4px' }}>
-                  Buyer Name:
-                </label>
-                <input
-                  type="text"
-                  value={customBuyer}
-                  onChange={(e) => setCustomBuyer(e.target.value)}
-                  style={{
-                    width: '100%',
-                    background: '#ffffff',
-                    border: '1.5px solid #cbd5e1',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    color: '#0f172a',
-                    fontSize: '0.84rem'
-                  }}
-                />
-              </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                Buyer Name:
+              </label>
+              <input
+                type="text"
+                value={customBuyer}
+                onChange={(e) => setCustomBuyer(e.target.value)}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.82rem' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                Carrier:
+              </label>
+              <select
+                value={customCarrier}
+                onChange={(e) => setCustomCarrier(e.target.value)}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.82rem' }}
+              >
+                <option value="UPS">UPS</option>
+                <option value="FEDEX">FedEx</option>
+                <option value="USPS">USPS</option>
+                <option value="DHL">DHL</option>
+              </select>
+            </div>
+
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                Item Name / Description:
+              </label>
+              <input
+                type="text"
+                value={customItem}
+                onChange={(e) => setCustomItem(e.target.value)}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.82rem' }}
+              />
             </div>
           </div>
         )}
 
+        {/* Modal Actions */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
           <button
             onClick={onClose}
@@ -285,7 +300,7 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
             className="btn btn-paypal-gold"
           >
             <Play size={15} />
-            {loading ? 'AI Copilot Analyzing...' : 'Dispatch Webhook Event'}
+            {loading ? 'Simulating Event & Running AI...' : 'Trigger Simulation'}
           </button>
         </div>
       </div>
