@@ -18,6 +18,7 @@ from ..agent import copilot_agent
 
 router = APIRouter(prefix="/api/disputes", tags=["Disputes"])
 
+@router.post("")
 @router.post("/simulate")
 async def simulate_dispute(payload: SimulateRequest):
     """
@@ -76,6 +77,7 @@ async def simulate_dispute(payload: SimulateRequest):
         ),
         win_score=agent_output["win_score"],
         win_reasons=agent_output["win_reasons"],
+        similar_cases=agent_output.get("similar_cases", []),
         approval_state="pending",
         buyer={
             "name": buyer_name,

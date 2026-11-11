@@ -1,13 +1,42 @@
+import os
+import json
+from pathlib import Path
 from typing import List, Dict, Optional
 from .models import (
     DisputeContract, Amount, OrderData, OrderItem, OrderShipping,
     EvidenceDraft, ProofItem
 )
 
+PERSIST_FILE = Path(__file__).resolve().parent / "local_disputes.json"
+
 class InMemoryDatabase:
     def __init__(self):
         self._disputes: Dict[str, DisputeContract] = {}
-        self._seed_default_disputes()
+        if PERSIST_FILE.exists():
+            try:
+                with open(PERSIST_FILE, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+                    for item in raw:
+                        d = DisputeContract(**item)
+                        d.populate_compatibility_fields()
+                        self._disputes[d.id] = d
+                if not self._disputes:
+                    self._seed_default_disputes()
+                    self._persist()
+            except Exception as e:
+                print(f"[DB] Loading local_disputes.json fallback: {e}")
+                self._seed_default_disputes()
+                self._persist()
+        else:
+            self._seed_default_disputes()
+            self._persist()
+
+    def _persist(self):
+        try:
+            with open(PERSIST_FILE, "w", encoding="utf-8") as f:
+                json.dump([d.dict() for d in self._disputes.values()], f, indent=2)
+        except Exception as e:
+            print(f"[DB] Persist error: {e}")
 
     def _seed_default_disputes(self):
         # Case 1: Matching Person A Spec v3 contract example
@@ -157,6 +186,7 @@ class InMemoryDatabase:
     def save(self, dispute: DisputeContract) -> DisputeContract:
         dispute.populate_compatibility_fields()
         self._disputes[dispute.id] = dispute
+        self._persist()
         return dispute
 
 db = InMemoryDatabase()

@@ -56,6 +56,7 @@ class DisputeContract(BaseModel):
     carrier_proof: Optional[Dict[str, Any]] = None
     elastic_precedent: Optional[Dict[str, Any]] = None
     win_score_breakdown: Optional[Dict[str, Any]] = None
+    similar_cases: Optional[List[Dict[str, Any]]] = None
 
     def populate_compatibility_fields(self):
         """Populates bidirectional compatibility fields for Person B's frontend."""

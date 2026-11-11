@@ -68,6 +68,7 @@ def normalize_paypal_dispute(raw: Dict[str, Any]) -> DisputeContract:
         ),
         win_score=agent_output["win_score"],
         win_reasons=agent_output["win_reasons"],
+        similar_cases=agent_output.get("similar_cases", []),
         approval_state="pending"
     )
 

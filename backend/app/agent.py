@@ -68,7 +68,8 @@ class DisputeCopilotAgent:
             "proofs": proofs,
             "win_score": win_score,
             "win_reasons": win_reasons,
-            "similar_cases_count": len(similar_cases)
+            "similar_cases_count": len(similar_cases),
+            "similar_cases": similar_cases[:3]
         }
 
         if CACHE_AGENT_OUTPUTS:

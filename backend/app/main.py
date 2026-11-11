@@ -152,6 +152,7 @@ def redraft_dispute_evidence(dispute_id: str, payload: RedraftRequest = RedraftR
     dispute.ai_drafted_evidence = fresh_agent_out["evidence_text"]
     dispute.win_score = fresh_agent_out["win_score"]
     dispute.win_reasons = fresh_agent_out["win_reasons"]
+    dispute.similar_cases = fresh_agent_out.get("similar_cases", [])
     db.save(dispute)
 
     # Record in audit ledger
@@ -320,7 +321,8 @@ def get_audit(dispute_id: Optional[str] = None):
         "ledger_integrity": report
     }
 
-# 9. POST /disputes/simulate - Built-in test harness for Person B demo
+# 9. POST /disputes & /disputes/simulate - Dynamic Dispute Ingestion & Simulation
 from .routes.disputes import simulate_dispute
+app.add_api_route("/disputes", simulate_dispute, methods=["POST"], tags=["Disputes"])
 app.add_api_route("/disputes/simulate", simulate_dispute, methods=["POST"], tags=["Simulator"])
 app.add_api_route("/api/disputes/simulate", simulate_dispute, methods=["POST"], tags=["Simulator"])

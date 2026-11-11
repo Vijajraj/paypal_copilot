@@ -16,6 +16,7 @@ export default function App() {
   const [isMockMode, setIsMockMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [autoSync, setAutoSync] = useState(true);
 
   // Modals
   const [showSimulateModal, setShowSimulateModal] = useState(false);
@@ -27,22 +28,31 @@ export default function App() {
     loadDisputes();
   }, [isMockMode]);
 
+  // Dynamic live auto-sync polling every 10 seconds
+  useEffect(() => {
+    if (!autoSync || isMockMode) return;
+    const interval = setInterval(() => {
+      loadDisputes(true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [autoSync, isMockMode]);
+
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 4500);
   };
 
-  const loadDisputes = async () => {
+  const loadDisputes = async (silent = false) => {
     if (isMockMode) {
       const list = initialMockDisputes.map(normalizeDispute);
       setDisputes(list);
       if (!selectedDispute) setSelectedDispute(list[0]);
-      setLoading(false);
+      if (!silent) setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await api.getDisputes();
       if (res.disputes && res.disputes.length > 0) {
         setDisputes(res.disputes);
@@ -54,12 +64,14 @@ export default function App() {
         });
       }
     } catch (err) {
-      console.warn('Backend API unavailable, using mock data:', err);
-      const list = initialMockDisputes.map(normalizeDispute);
-      setDisputes(list);
-      if (!selectedDispute) setSelectedDispute(list[0]);
+      if (!silent) {
+        console.warn('Backend API unavailable, using mock data:', err);
+        const list = initialMockDisputes.map(normalizeDispute);
+        setDisputes(list);
+        if (!selectedDispute) setSelectedDispute(list[0]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -167,6 +179,8 @@ export default function App() {
         isSyncing={isSyncing}
         isMockMode={isMockMode}
         setIsMockMode={setIsMockMode}
+        autoSync={autoSync}
+        setAutoSync={setAutoSync}
       />
 
       {/* PayPal Style Toast Notification */}

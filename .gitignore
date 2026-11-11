@@ -13,6 +13,7 @@ __pycache__/
 .env.local
 backend/app/secrets.py
 *.db
+backend/app/local_*.json
 
 # Build output
 dist

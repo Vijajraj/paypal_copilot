@@ -375,25 +375,72 @@ export default function DetailPanel({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Search size={20} color="#003087" />
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#003087' }}>
-                  Elastic Precedent & Policy Match
+                  Elastic Cloud Precedent Search
                 </h3>
               </div>
               <span style={{
                 fontSize: '0.72rem',
-                background: '#f1f5f9',
-                color: '#475569',
+                background: '#fefce8',
+                color: '#a16207',
+                border: '1px solid #fef08a',
                 padding: '3px 10px',
                 borderRadius: 'var(--radius-pill)',
                 fontWeight: 700
               }}>
-                Precedent {precedent.precedent_id || 'PREC-88219'}
+                Cluster: past_disputes (30 Cases)
               </span>
             </div>
 
-            <p style={{ fontSize: '0.84rem', color: '#334155', lineHeight: '1.5', marginBottom: '10px' }}>
-              Historical PayPal disputes with signed carrier proof on this reason won{' '}
-              <strong style={{ color: '#007b36' }}>{((precedent.benchmark_win_rate || 0.94) * 100).toFixed(0)}%</strong> of cases in the seller's favor.
-            </p>
+            {dispute.similar_cases && dispute.similar_cases.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
+                  Top Similar Historical Disputes Matched by BM25:
+                </div>
+                {dispute.similar_cases.map((sc, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '0.78rem'
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: '#003087' }}>{sc.case_id || `PREC-${idx + 1}`}</strong>
+                      <span style={{ color: '#64748b', marginLeft: '6px' }}>{sc.item_name || 'Similar Item'} ({sc.carrier || 'Carrier'})</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        fontWeight: 700,
+                        color: sc.outcome === 'WON' ? '#16a34a' : '#dc2626',
+                        background: sc.outcome === 'WON' ? '#dcfce7' : '#fee2e2',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem'
+                      }}>
+                        {sc.outcome || 'WON'}
+                      </span>
+                      {sc.similarity_score && (
+                        <span style={{ color: '#64748b', fontSize: '0.7rem' }}>
+                          {Math.round(sc.similarity_score * 100)}% match
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: '0.84rem', color: '#334155', lineHeight: '1.5', marginBottom: '10px' }}>
+                Historical PayPal disputes with signed carrier proof on this reason won{' '}
+                <strong style={{ color: '#007b36' }}>{((precedent.benchmark_win_rate || 0.94) * 100).toFixed(0)}%</strong> of cases in the seller's favor.
+              </p>
+            )}
+
             <div style={{
               fontSize: '0.76rem',
               color: '#003087',
@@ -403,7 +450,7 @@ export default function DetailPanel({
               border: '1px solid #bfdbfe',
               fontWeight: 600
             }}>
-              PayPal Policy Rule: {precedent.policy_citation || 'PayPal Seller Protection Policy Section 11.3'}
+              PayPal Policy Rule: {precedent.policy_citation || 'PayPal Seller Protection Policy Section 11.3 (Proof of Delivery)'}
             </div>
           </div>
 

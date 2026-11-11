@@ -1,8 +1,11 @@
+from pathlib import Path
 import hashlib
 import json
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple
 from ..models import AuditEntry, Actor
+
+AUDIT_PERSIST_FILE = Path(__file__).resolve().parent.parent / "local_audit.json"
 
 def compute_entry_hash(
     entry_id: str,
@@ -21,7 +24,29 @@ def compute_entry_hash(
 class CryptographicAuditLedger:
     def __init__(self):
         self._entries: List[AuditEntry] = []
-        self._seed_default_ledger()
+        if AUDIT_PERSIST_FILE.exists():
+            try:
+                with open(AUDIT_PERSIST_FILE, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+                    for item in raw:
+                        self._entries.append(AuditEntry(**item))
+                if not self._entries:
+                    self._seed_default_ledger()
+                    self._persist()
+            except Exception as e:
+                print(f"[Audit] Loading local_audit.json fallback: {e}")
+                self._seed_default_ledger()
+                self._persist()
+        else:
+            self._seed_default_ledger()
+            self._persist()
+
+    def _persist(self):
+        try:
+            with open(AUDIT_PERSIST_FILE, "w", encoding="utf-8") as f:
+                json.dump([e.dict() for e in self._entries], f, indent=2)
+        except Exception as e:
+            print(f"[Audit] Persist error: {e}")
 
     def _seed_default_ledger(self):
         """Initializes the ledger with a cryptographic genesis block and sample entries."""
@@ -112,6 +137,7 @@ class CryptographicAuditLedger:
         )
 
         self._entries.append(entry)
+        self._persist()
         return entry
 
     def get_entries(self, dispute_id: str = None) -> List[AuditEntry]:

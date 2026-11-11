@@ -21,7 +21,9 @@ export default function Navbar({
   onSync,
   isSyncing,
   isMockMode,
-  setIsMockMode
+  setIsMockMode,
+  autoSync,
+  setAutoSync
 }) {
   return (
     <header style={{ marginBottom: '24px' }}>
@@ -138,6 +140,35 @@ export default function Navbar({
 
           {/* Right Tools & Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Dynamic Auto-Refresh Toggle */}
+            <button
+              onClick={() => setAutoSync && setAutoSync(!autoSync)}
+              style={{
+                background: autoSync ? 'rgba(34, 197, 94, 0.25)' : 'rgba(255, 255, 255, 0.1)',
+                border: `1.5px solid ${autoSync ? '#4ade80' : 'rgba(255, 255, 255, 0.2)'}`,
+                borderRadius: 'var(--radius-pill)',
+                color: '#ffffff',
+                padding: '6px 12px',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.15s'
+              }}
+              title="Toggle Live Auto-Sync: automatically refreshes data from backend every 10 seconds"
+            >
+              <span style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: autoSync ? '#4ade80' : '#94a3b8',
+                boxShadow: autoSync ? '0 0 8px #4ade80' : 'none'
+              }} />
+              {autoSync ? 'Live Auto-Sync (10s)' : 'Auto-Sync: Off'}
+            </button>
+
             {/* Sync PayPal Sandbox Button */}
             <button
               onClick={onSync}
