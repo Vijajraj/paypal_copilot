@@ -1,0 +1,44 @@
+name: Render Backend Keep-Alive & Health Ping
+
+on:
+  schedule:
+    # Run every 14 minutes to prevent Render free instance from spinning down (sleeps after 15m inactivity)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    name: Ping Backend & Check Health
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Render Backend Health Endpoint
+        run: |
+          BACKEND_URL="${{ secrets.BACKEND_URL || 'https://paypal-copilot-backend.onrender.com' }}"
+          echo "Pinging health endpoint: ${BACKEND_URL}/health"
+          
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s" "${BACKEND_URL}/health")
+          
+          HTTP_BODY=$(echo "$RESPONSE" | sed -e '$d' | sed -e '$d')
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
+          TIME_TOTAL=$(echo "$RESPONSE" | grep "TIME_TOTAL" | cut -d':' -f2)
+          
+          echo "Response Body: $HTTP_BODY"
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "Latency: $TIME_TOTAL"
+          
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "⚠️ Warning: Expected HTTP 200, received $HTTP_STATUS"
+            exit 1
+          fi
+          
+          echo "✅ Backend is active and responsive!"
+
+      - name: Check Integration Health Status
+        continue-on-error: true
+        run: |
+          BACKEND_URL="${{ secrets.BACKEND_URL || 'https://paypal-copilot-backend.onrender.com' }}"
+          echo "Checking integration health: ${BACKEND_URL}/health/integrations"
+          
+          STATUS=$(curl -s "${BACKEND_URL}/health/integrations")
+          echo "Integrations Status: $STATUS"
