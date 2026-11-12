@@ -44,7 +44,8 @@ class CryptographicAuditLedger:
     def _persist(self):
         try:
             with open(AUDIT_PERSIST_FILE, "w", encoding="utf-8") as f:
-                json.dump([e.dict() for e in self._entries], f, indent=2)
+                records = [e.model_dump() if hasattr(e, "model_dump") else e.dict() for e in self._entries]
+                json.dump(records, f, indent=2)
         except Exception as e:
             print(f"[Audit] Persist error: {e}")
 

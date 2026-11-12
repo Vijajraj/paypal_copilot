@@ -46,6 +46,14 @@ app.include_router(webhook_router)
 app.include_router(restock_router)
 app.include_router(zapier_router)
 
+def to_dict(obj):
+    """API Optimization: Fast, warning-free model serialization."""
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    if hasattr(obj, "dict"):
+        return obj.dict()
+    return obj
+
 # -------------------------------------------------------------
 # Core Routes for Person B (Section 9 of Spec)
 # -------------------------------------------------------------
@@ -83,7 +91,7 @@ def list_disputes(status: Optional[str] = None):
     return {
         "success": True,
         "count": len(items),
-        "disputes": [d.dict() for d in items]
+        "disputes": [to_dict(d) for d in items]
     }
 
 # 2. GET /disputes/{id} - Full detail
@@ -93,7 +101,7 @@ def get_dispute(dispute_id: str):
     dispute = db.get_by_id(dispute_id)
     if not dispute:
         raise HTTPException(status_code=404, detail=f"Dispute '{dispute_id}' not found.")
-    return {"success": True, "dispute": dispute.dict()}
+    return {"success": True, "dispute": to_dict(dispute)}
 
 # 3. PATCH & POST /disputes/{id}/evidence - Save edits from the UI
 @app.patch("/disputes/{dispute_id}/evidence")
@@ -120,7 +128,7 @@ def update_evidence(dispute_id: str, payload: EvidenceUpdateRequest):
             details="Merchant manually modified formal legal evidence statement in UI."
         )
 
-    return {"success": True, "dispute": dispute.dict()}
+    return {"success": True, "dispute": to_dict(dispute)}
 
 # 3b. POST /disputes/{id}/redraft - Regenerate evidence draft with Groq AI
 @app.post("/disputes/{dispute_id}/redraft")
@@ -132,8 +140,8 @@ def redraft_dispute_evidence(dispute_id: str, payload: RedraftRequest = RedraftR
 
     order_info = {
         "id": dispute.order.id,
-        "items": [i.dict() for i in dispute.order.items],
-        "shipping": dispute.order.shipping.dict()
+        "items": [to_dict(i) for i in dispute.order.items],
+        "shipping": to_dict(dispute.order.shipping)
     }
     dispute_info = {
         "id": dispute.id,
@@ -164,7 +172,7 @@ def redraft_dispute_evidence(dispute_id: str, payload: RedraftRequest = RedraftR
         details=f"AI Agent re-analyzed Elastic precedents and regenerated evidence with Groq (Win Score: {fresh_agent_out['win_score']}%)."
     )
 
-    return {"success": True, "dispute": dispute.dict()}
+    return {"success": True, "dispute": to_dict(dispute)}
 
 # 4. POST /disputes/{id}/approve - Approve and submit to PayPal
 @app.post("/disputes/{dispute_id}/approve")
@@ -234,12 +242,12 @@ def approve_dispute(
 
     return {
         "success": True,
-        "dispute": dispute.dict(),
-        "audit": audit_entry.dict(),
+        "dispute": to_dict(dispute),
+        "audit": to_dict(audit_entry),
         "paypal_response": paypal_res
     }
 
-# 5. POST /disputes/{id}/reject - Reject the draft / Concede claim
+# 5. POST /disputes/{id}/reject - Reject the draft / Concede claim & refund
 @app.post("/disputes/{dispute_id}/reject")
 @app.post("/api/disputes/{dispute_id}/reject")
 def reject_dispute(dispute_id: str, payload: RejectRequest):
@@ -261,15 +269,30 @@ def reject_dispute(dispute_id: str, payload: RejectRequest):
     }
     db.save(dispute)
 
+    # 1. Interface with PayPal Sandbox to formally accept claim & issue buyer refund
+    paypal_res = paypal_client.accept_claim(
+        dispute_id=dispute_id,
+        note=payload.reason or "Merchant accepted claim liability and issued full buyer refund"
+    )
+
+    # 2. Append immutable record to cryptographic SHA-256 audit ledger
     audit_entry = audit_ledger.record_entry(
         dispute_id=dispute_id,
         actor_type="HUMAN_APPROVER",
         actor_id=approver,
         action="DISPUTE_CLAIM_REJECTED",
-        details=f"Merchant conceded dispute claim. Reason: {payload.reason}"
+        details=f"Merchant human approver '{approver}' conceded claim. Full refund issued to buyer. Reason: {payload.reason}"
     )
 
-    return {"success": True, "dispute": dispute.dict()}
+    # 3. Trigger Zapier webhook audit log
+    zapier_service.trigger_audit_log(audit_entry)
+
+    return {
+        "success": True,
+        "dispute": to_dict(dispute),
+        "audit": to_dict(audit_entry),
+        "paypal_response": paypal_res
+    }
 
 # 6. POST /sync - Pull disputes from PayPal now
 @app.post("/sync")
@@ -284,7 +307,7 @@ def sync_disputes():
     return {
         "success": True,
         "synced_count": len(synced),
-        "disputes": [d.dict() for d in synced]
+        "disputes": [to_dict(d) for d in synced]
     }
 
 # 7. GET /timeline - Deadlines for calendar view
@@ -298,7 +321,7 @@ def get_timeline():
             "dispute_id": d.id,
             "respond_by": d.respond_by,
             "status": d.status,
-            "amount": d.amount.dict(),
+            "amount": to_dict(d.amount),
             "reason": d.reason,
             "win_score": d.win_score,
             "approval_state": d.approval_state
@@ -313,7 +336,7 @@ def get_timeline():
 def get_audit(dispute_id: Optional[str] = None):
     entries = audit_ledger.get_entries(dispute_id)
     is_valid, report = audit_ledger.verify_chain()
-    reversed_entries = [e.dict() for e in reversed(entries)]
+    reversed_entries = [to_dict(e) for e in reversed(entries)]
     return {
         "success": True,
         "count": len(reversed_entries),

@@ -168,35 +168,48 @@ export function normalizeDispute(d) {
         country_code: 'US'
       }
     },
-    seller_approval: d.seller_approval || {
-      approved: d.approval_state === 'approved' || d.approval_state === 'submitted',
-      conceded: d.approval_state === 'rejected',
-      approved_at: null,
-      approver_id: null,
-      rejection_reason: null
+    seller_approval: {
+      approved: Boolean(d.seller_approval?.approved || d.approval_state === 'approved' || d.approval_state === 'submitted'),
+      conceded: Boolean(d.seller_approval?.conceded || d.approval_state === 'rejected'),
+      approved_at: d.seller_approval?.approved_at || null,
+      approver_id: d.seller_approval?.approver_id || null,
+      rejection_reason: d.seller_approval?.rejection_reason || null
     }
   };
 }
 
+let _inFlightGetDisputes = null;
+
 export const api = {
   async getDisputes(status = null) {
-    try {
-      const endpoint = status ? `${API_BASE}/disputes?status=${encodeURIComponent(status)}` : `${API_BASE}/disputes`;
-      const res = await fetch(endpoint);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.disputes && Array.isArray(data.disputes)) {
-          const normalized = data.disputes.map(normalizeDispute);
-          saveStoredDisputes(normalized);
-          return { success: true, count: normalized.length, disputes: normalized };
-        }
-      }
-    } catch (e) {
-      // Backend not running, use local storage fallback
+    if (!status && _inFlightGetDisputes) {
+      return _inFlightGetDisputes;
     }
-    const list = getStoredDisputes().map(normalizeDispute);
-    const filtered = status ? list.filter(d => d.status === status) : list;
-    return { success: true, count: filtered.length, disputes: filtered };
+
+    const fetchPromise = (async () => {
+      try {
+        const endpoint = status ? `${API_BASE}/disputes?status=${encodeURIComponent(status)}` : `${API_BASE}/disputes`;
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.disputes && Array.isArray(data.disputes)) {
+            const normalized = data.disputes.map(normalizeDispute);
+            saveStoredDisputes(normalized);
+            return { success: true, count: normalized.length, disputes: normalized };
+          }
+        }
+      } catch (e) {
+        // Backend not running, use local storage fallback
+      } finally {
+        if (!status) _inFlightGetDisputes = null;
+      }
+      const list = getStoredDisputes().map(normalizeDispute);
+      const filtered = status ? list.filter(d => d.status === status) : list;
+      return { success: true, count: filtered.length, disputes: filtered };
+    })();
+
+    if (!status) _inFlightGetDisputes = fetchPromise;
+    return fetchPromise;
   },
 
   async getDispute(id) {

@@ -34,7 +34,8 @@ class InMemoryDatabase:
     def _persist(self):
         try:
             with open(PERSIST_FILE, "w", encoding="utf-8") as f:
-                json.dump([d.dict() for d in self._disputes.values()], f, indent=2)
+                records = [d.model_dump() if hasattr(d, "model_dump") else d.dict() for d in self._disputes.values()]
+                json.dump(records, f, indent=2)
         except Exception as e:
             print(f"[DB] Persist error: {e}")
 

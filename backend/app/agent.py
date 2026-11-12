@@ -160,6 +160,12 @@ class DisputeCopilotAgent:
         )
         return draft
 
+    def _get_groq_client(self):
+        if not hasattr(self, "_groq_client") or self._groq_client is None:
+            from groq import Groq
+            self._groq_client = Groq(api_key=AI_API_KEY)
+        return self._groq_client
+
     def _call_llm_agent(
         self,
         dispute_data: Dict[str, Any],
@@ -168,10 +174,9 @@ class DisputeCopilotAgent:
         proofs: List[Dict[str, Any]],
         merchant_notes: Optional[str] = None
     ) -> Optional[str]:
-        """Optional call to Groq / OpenAI LLM using free tier."""
+        """Call to Groq LLM with connection pooling."""
         try:
-            from groq import Groq
-            client = Groq(api_key=AI_API_KEY)
+            client = self._get_groq_client()
             notes_section = f"\nMerchant Specific Clarifications: {merchant_notes}" if merchant_notes else ""
             user_prompt = f"""
 Dispute: {json.dumps(dispute_data)}

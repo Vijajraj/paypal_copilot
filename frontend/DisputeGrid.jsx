@@ -22,16 +22,24 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
   const StatusCellRenderer = (params) => {
     const status = params.value || '';
     const approvalState = params.data?.approval_state;
+    const isConceded = approvalState === 'rejected' || Boolean(data?.seller_approval?.conceded);
     let badge = null;
 
-    if (approvalState === 'submitted' || status === 'UNDER_REVIEW') {
+    if (isConceded) {
+      badge = (
+        <span className="paypal-badge badge-urgent" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}>
+          <XCircle size={12} color="#dc2626" />
+          Claim Conceded
+        </span>
+      );
+    } else if (approvalState === 'submitted' || status === 'UNDER_REVIEW') {
       badge = (
         <span className="paypal-badge badge-review">
           <CheckCircle2 size={12} />
           Under review
         </span>
       );
-    } else if (approvalState === 'rejected' || status === 'RESOLVED') {
+    } else if (status === 'RESOLVED') {
       badge = (
         <span className="paypal-badge badge-resolved">
           <CheckCircle2 size={12} />
@@ -148,6 +156,26 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
 
   // Win Score Cell Renderer
   const WinScoreCellRenderer = (params) => {
+    const data = params.data;
+    const isConceded = data?.approval_state === 'rejected' || Boolean(data?.seller_approval?.conceded);
+    if (isConceded) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}>
+          <span style={{
+            background: '#fef2f2',
+            color: '#dc2626',
+            padding: '3px 10px',
+            borderRadius: 'var(--radius-pill)',
+            fontWeight: 800,
+            fontSize: '0.76rem',
+            border: '1px solid #fecaca'
+          }}>
+            Conceded (0%)
+          </span>
+        </div>
+      );
+    }
+
     const score = params.value || 0;
     let color = '#007b36';
     let barColor = '#10b981';

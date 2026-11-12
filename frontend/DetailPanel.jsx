@@ -53,6 +53,7 @@ export default function DetailPanel({
   const [rejectReason, setRejectReason] = useState('Seller accepted claim liability');
   const [merchantNotes, setMerchantNotes] = useState('');
   const [isRedrafting, setIsRedrafting] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
   const [approverName, setApproverName] = useState('Authorized Seller Representative');
   const [approvalSecret, setApprovalSecret] = useState(DEFAULT_APPROVAL_SECRET);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,8 +66,8 @@ export default function DetailPanel({
   }, [dispute.id, dispute.dispute_id, dispute.evidence_draft?.text, dispute.ai_drafted_evidence]);
 
   const winScore = dispute.win_score || 78;
-  const isApproved = dispute.approval_state === 'submitted' || dispute.approval_state === 'approved' || dispute.seller_approval?.approved;
-  const isConceded = dispute.approval_state === 'rejected' || dispute.seller_approval?.conceded;
+  const isApproved = dispute.approval_state === 'submitted' || dispute.approval_state === 'approved' || Boolean(dispute.seller_approval?.approved);
+  const isConceded = dispute.approval_state === 'rejected' || Boolean(dispute.seller_approval?.conceded);
   const breakdown = dispute.win_score_breakdown || {};
   const winReasons = dispute.win_reasons || [
     'Carrier proof of delivery confirmed via KERNEL engine',
@@ -123,11 +124,14 @@ export default function DetailPanel({
   };
 
   const handleConfirmReject = async () => {
+    setIsRejecting(true);
     try {
       await onReject(disputeId, rejectReason);
       setShowRejectModal(false);
     } catch (err) {
       alert('Action error: ' + err.message);
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -245,21 +249,42 @@ export default function DetailPanel({
             </div>
           </div>
 
-          <div style={{
-            background: winScore >= 70 ? '#ecfdf5' : '#fffbeb',
-            border: `1.5px solid ${winScore >= 70 ? '#a7f3d0' : '#fde68a'}`,
-            borderRadius: 'var(--radius-md)',
-            padding: '10px 20px',
-            textAlign: 'center',
-            minWidth: '150px'
-          }}>
-            <div style={{ fontSize: '0.7rem', color: winScore >= 70 ? '#065f46' : '#92400e', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Estimated Win Chance
+          {isConceded ? (
+            <div style={{
+              background: '#fef2f2',
+              border: '1.5px solid #fecaca',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 18px',
+              textAlign: 'center',
+              minWidth: '150px'
+            }}>
+              <div style={{ fontSize: '0.7rem', color: '#991b1b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                Case Disposition
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#dc2626', lineHeight: 1.15, marginTop: '3px' }}>
+                Claim Conceded
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#b91c1c', fontWeight: 600, marginTop: '2px' }}>
+                Full Refund Issued
+              </div>
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: winScore >= 70 ? '#059669' : '#d97706', lineHeight: 1.15, marginTop: '2px' }}>
-              {winScore}%
+          ) : (
+            <div style={{
+              background: winScore >= 70 ? '#ecfdf5' : '#fffbeb',
+              border: `1.5px solid ${winScore >= 70 ? '#a7f3d0' : '#fde68a'}`,
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 20px',
+              textAlign: 'center',
+              minWidth: '150px'
+            }}>
+              <div style={{ fontSize: '0.7rem', color: winScore >= 70 ? '#065f46' : '#92400e', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                Estimated Win Chance
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: winScore >= 70 ? '#059669' : '#d97706', lineHeight: 1.15, marginTop: '2px' }}>
+                {winScore}%
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -271,19 +296,19 @@ export default function DetailPanel({
             <div className="paypal-step-label">1. Dispute Filed</div>
           </div>
 
-          <div className={`paypal-step ${isApproved ? 'completed' : 'active'}`}>
-            <div className="paypal-step-circle">{isApproved ? '✓' : '2'}</div>
-            <div className="paypal-step-label">2. Seller Evidence</div>
+          <div className={`paypal-step ${isApproved ? 'completed' : isConceded ? 'completed' : 'active'}`}>
+            <div className="paypal-step-circle">{isApproved || isConceded ? '✓' : '2'}</div>
+            <div className="paypal-step-label">{isConceded ? '2. Claim Conceded' : '2. Seller Evidence'}</div>
           </div>
 
-          <div className={`paypal-step ${isApproved ? 'active' : ''}`}>
-            <div className="paypal-step-circle">3</div>
-            <div className="paypal-step-label">3. PayPal Review</div>
+          <div className={`paypal-step ${isApproved ? 'active' : isConceded ? 'completed' : ''}`}>
+            <div className="paypal-step-circle">{isConceded ? '✓' : '3'}</div>
+            <div className="paypal-step-label">{isConceded ? '3. Full Refund Issued' : '3. PayPal Review'}</div>
           </div>
 
-          <div className="paypal-step">
-            <div className="paypal-step-circle">4</div>
-            <div className="paypal-step-label">4. Case Closed</div>
+          <div className={`paypal-step ${isConceded ? 'completed' : ''}`}>
+            <div className="paypal-step-circle">{isConceded ? '✓' : '4'}</div>
+            <div className="paypal-step-label">{isConceded ? '4. Case Closed' : '4. Case Closed'}</div>
           </div>
         </div>
       </div>
@@ -581,7 +606,15 @@ export default function DetailPanel({
                   {copied ? 'Copied' : 'Copy'}
                 </button>
 
-                {isEditing ? (
+                {isConceded ? (
+                  <span style={{ fontSize: '0.76rem', color: '#dc2626', fontWeight: 700, background: '#fef2f2', padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid #fecaca' }}>
+                    Archived • Claim Conceded
+                  </span>
+                ) : isApproved ? (
+                  <span style={{ fontSize: '0.76rem', color: '#16a34a', fontWeight: 700, background: '#f0fdf4', padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid #bbf7d0' }}>
+                    Locked • Submitted to PayPal
+                  </span>
+                ) : isEditing ? (
                   <button
                     onClick={handleSaveDraft}
                     disabled={isSubmitting}
@@ -618,9 +651,11 @@ export default function DetailPanel({
             <textarea
               value={evidenceText}
               onChange={(e) => {
+                if (isApproved || isConceded) return;
                 setEvidenceText(e.target.value);
                 if (!isEditing) setIsEditing(true);
               }}
+              readOnly={isApproved || isConceded}
               rows={14}
               style={{
                 width: '100%',
@@ -713,17 +748,40 @@ export default function DetailPanel({
             ) : isConceded ? (
               <div style={{
                 background: '#fef2f2',
-                border: '1px solid #fecaca',
+                border: '1.5px solid #fecaca',
                 borderRadius: '8px',
-                padding: '16px',
+                padding: '18px 20px',
                 fontSize: '0.85rem'
               }}>
-                <div style={{ color: '#991b1b', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <XCircle size={20} color="#dc2626" />
+                <div style={{ color: '#991b1b', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.98rem' }}>
+                  <XCircle size={22} color="#dc2626" />
                   Claim Conceded / Full Buyer Refund Issued
                 </div>
-                <div style={{ color: '#b91c1c', fontSize: '0.78rem', marginTop: '4px' }}>
-                  Merchant accepted liability. Case resolved.
+                <div style={{ color: '#7f1d1d', fontSize: '0.82rem', marginTop: '6px', lineHeight: '1.5' }}>
+                  Merchant accepted liability. Full dispute amount of <strong>${amountVal} {amountCurr}</strong> credited back to buyer <strong>{buyerName}</strong>.
+                </div>
+                <div style={{
+                  marginTop: '12px',
+                  paddingTop: '12px',
+                  borderTop: '1px solid #fee2e2',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '8px',
+                  fontSize: '0.78rem',
+                  color: '#991b1b'
+                }}>
+                  <div>
+                    <strong>Reason:</strong> {dispute.seller_approval?.rejection_reason || 'Seller accepted claim liability'}
+                  </div>
+                  <div>
+                    <strong>Authorized By:</strong> {dispute.seller_approval?.approver_id || 'Authorized Merchant Representative'}
+                  </div>
+                  <div>
+                    <strong>Date & Time:</strong> {dispute.seller_approval?.approved_at ? new Date(dispute.seller_approval.approved_at).toLocaleString() : 'Recent'}
+                  </div>
+                  <div>
+                    <strong>PayPal Status:</strong> RESOLVED • Refund Completed
+                  </div>
                 </div>
               </div>
             ) : (
@@ -997,14 +1055,16 @@ export default function DetailPanel({
               <button
                 onClick={() => setShowRejectModal(false)}
                 className="btn btn-paypal-neutral"
+                disabled={isRejecting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmReject}
+                disabled={isRejecting}
                 className="btn btn-paypal-danger"
               >
-                Confirm Concession & Refund
+                {isRejecting ? 'Issuing Refund in PayPal...' : 'Confirm Concession & Refund'}
               </button>
             </div>
           </div>

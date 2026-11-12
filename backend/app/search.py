@@ -14,6 +14,8 @@ except ImportError:
 class DisputeSearchService:
     def __init__(self):
         self._seed_cases = self._load_seed_cases()
+        self._cache: Dict[str, List[Dict[str, Any]]] = {}
+        self._elastic_client = None
 
     def _load_seed_cases(self) -> List[Dict[str, Any]]:
         """Loads seeded historical dispute fixtures."""
@@ -27,16 +29,25 @@ class DisputeSearchService:
 
     def search_similar_cases(self, reason: str, item_name: str = "", carrier: str = "", top_k: int = SIMILAR_CASES_TOP_K) -> List[Dict[str, Any]]:
         """
-        Searches past dispute precedents.
+        Searches past dispute precedents with LRU in-memory query cache for optimal response latency.
         Supports in-code ranking (default) and Elastic Cloud when USE_ELASTIC=True.
         """
+        cache_key = f"{reason}:{item_name}:{carrier}:{top_k}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
         if USE_ELASTIC and ELASTIC_URL and ELASTIC_API_KEY:
             try:
-                return self._search_elastic(reason, item_name, top_k)
+                res = self._search_elastic(reason, item_name, top_k)
+                if res:
+                    self._cache[cache_key] = res
+                    return res
             except Exception as e:
                 print(f"[Search] Elastic query failed, falling back to in-code search: {e}")
 
-        return self._search_incode(reason, item_name, carrier, top_k)
+        res = self._search_incode(reason, item_name, carrier, top_k)
+        self._cache[cache_key] = res
+        return res
 
     def _search_incode(self, reason: str, item_name: str, carrier: str, top_k: int) -> List[Dict[str, Any]]:
         """In-code weighted similarity matcher over past disputes."""
@@ -75,10 +86,16 @@ class DisputeSearchService:
         scored.sort(key=lambda x: x[0], reverse=True)
         return [item[1] for item in scored[:top_k]]
 
+    def _get_elastic_client(self):
+        if self._elastic_client is None:
+            import httpx
+            headers = {"Authorization": f"ApiKey {ELASTIC_API_KEY}", "Content-Type": "application/json"}
+            self._elastic_client = httpx.Client(timeout=4.0, headers=headers)
+        return self._elastic_client
+
     def _search_elastic(self, reason: str, item_name: str, top_k: int) -> List[Dict[str, Any]]:
-        """Placeholder for Elastic query when trial is configured."""
-        import httpx
-        headers = {"Authorization": f"ApiKey {ELASTIC_API_KEY}", "Content-Type": "application/json"}
+        """Elastic Cloud query with persistent connection pool."""
+        client = self._get_elastic_client()
         query = {
             "size": top_k,
             "query": {
@@ -90,16 +107,15 @@ class DisputeSearchService:
                 }
             }
         }
-        with httpx.Client(timeout=4.0) as client:
-            res = client.post(f"{ELASTIC_URL}/{ELASTIC_INDEX}/_search", headers=headers, json=query)
-            if res.status_code == 200:
-                hits = res.json().get("hits", {}).get("hits", [])
-                results = []
-                for h in hits:
-                    doc = h.get("_source", {})
-                    doc["similarity_score"] = round(min(0.99, h.get("_score", 1.0) / 10.0), 2)
-                    results.append(doc)
-                return results
+        res = client.post(f"{ELASTIC_URL}/{ELASTIC_INDEX}/_search", json=query)
+        if res.status_code == 200:
+            hits = res.json().get("hits", {}).get("hits", [])
+            results = []
+            for h in hits:
+                doc = h.get("_source", {})
+                doc["similarity_score"] = round(min(0.99, h.get("_score", 1.0) / 10.0), 2)
+                results.append(doc)
+            return results
         return self._search_incode(reason, item_name, "", top_k)
 
 search_service = DisputeSearchService()

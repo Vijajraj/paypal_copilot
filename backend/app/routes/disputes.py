@@ -106,4 +106,7 @@ async def simulate_dispute(payload: SimulateRequest):
     # Trigger Zapier notification alert
     zapier_service.trigger_dispute_notification(new_dispute)
 
-    return {"success": True, "dispute": new_dispute.dict()}
+    return {
+        "success": True,
+        "dispute": new_dispute.model_dump() if hasattr(new_dispute, "model_dump") else new_dispute.dict()
+    }

@@ -76,6 +76,13 @@ class DisputeContract(BaseModel):
                 "approver_id": None,
                 "rejection_reason": None
             }
+        else:
+            if self.approval_state == "rejected":
+                self.seller_approval["conceded"] = True
+                self.seller_approval["approved"] = False
+            elif self.approval_state in ["approved", "submitted"]:
+                self.seller_approval["approved"] = True
+                self.seller_approval["conceded"] = False
         if not self.buyer:
             self.buyer = {
                 "name": self.order.shipping.signed_by or "Customer",
