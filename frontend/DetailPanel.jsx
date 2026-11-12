@@ -149,10 +149,11 @@ export default function DetailPanel({
   };
 
   return (
-    <div className="paypal-card" style={{ marginTop: '24px', padding: '28px', borderTop: '4px solid #003087', position: 'relative' }}>
+    <div data-testid="detail-panel" className="paypal-card" style={{ marginTop: '24px', padding: '28px', borderTop: '4px solid #003087', position: 'relative' }}>
       {/* Close button */}
       {onClose && (
         <button
+          data-testid="btn-close-detail"
           onClick={onClose}
           style={{
             position: 'absolute',
@@ -597,6 +598,7 @@ export default function DetailPanel({
                 )}
 
                 <button
+                  data-testid="btn-copy-evidence"
                   onClick={handleCopyText}
                   className="btn btn-paypal-outline"
                   style={{ padding: '5px 10px', fontSize: '0.76rem' }}
@@ -607,15 +609,16 @@ export default function DetailPanel({
                 </button>
 
                 {isConceded ? (
-                  <span style={{ fontSize: '0.76rem', color: '#dc2626', fontWeight: 700, background: '#fef2f2', padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid #fecaca' }}>
+                  <span data-testid="status-archived-conceded" style={{ fontSize: '0.76rem', color: '#dc2626', fontWeight: 700, background: '#fef2f2', padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid #fecaca' }}>
                     Archived • Claim Conceded
                   </span>
                 ) : isApproved ? (
-                  <span style={{ fontSize: '0.76rem', color: '#16a34a', fontWeight: 700, background: '#f0fdf4', padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid #bbf7d0' }}>
+                  <span data-testid="status-locked-submitted" style={{ fontSize: '0.76rem', color: '#16a34a', fontWeight: 700, background: '#f0fdf4', padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid #bbf7d0' }}>
                     Locked • Submitted to PayPal
                   </span>
                 ) : isEditing ? (
                   <button
+                    data-testid="btn-save-evidence"
                     onClick={handleSaveDraft}
                     disabled={isSubmitting}
                     className="btn btn-paypal-blue"
@@ -626,6 +629,7 @@ export default function DetailPanel({
                 ) : (
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
+                      data-testid="btn-regenerate-ai"
                       onClick={() => setShowRedraftModal(true)}
                       className="btn btn-paypal-outline"
                       style={{ padding: '5px 12px', fontSize: '0.76rem', color: '#1d4ed8', borderColor: '#bfdbfe', background: '#eff6ff' }}
@@ -635,6 +639,7 @@ export default function DetailPanel({
                       Regenerate (Groq AI)
                     </button>
                     <button
+                      data-testid="btn-edit-evidence"
                       onClick={() => setIsEditing(true)}
                       className="btn btn-paypal-outline"
                       style={{ padding: '5px 14px', fontSize: '0.78rem' }}
@@ -649,6 +654,7 @@ export default function DetailPanel({
 
             {/* Editable Text Area */}
             <textarea
+              data-testid="evidence-textarea"
               value={evidenceText}
               onChange={(e) => {
                 if (isApproved || isConceded) return;
@@ -787,6 +793,7 @@ export default function DetailPanel({
             ) : (
               <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
                 <button
+                  data-testid="btn-approve-submit"
                   onClick={() => setShowApproveModal(true)}
                   className="btn btn-paypal-gold"
                   style={{ flex: 1, padding: '13px 24px', fontSize: '0.95rem' }}
@@ -796,6 +803,7 @@ export default function DetailPanel({
                 </button>
 
                 <button
+                  data-testid="btn-concede-refund"
                   onClick={() => setShowRejectModal(true)}
                   className="btn btn-paypal-danger"
                   style={{ padding: '13px 20px', fontSize: '0.9rem' }}
@@ -812,7 +820,7 @@ export default function DetailPanel({
       {/* Confirmation Modal: Authorize Evidence Submission */}
       {showApproveModal && (
         <div className="modal-overlay">
-          <div className="modal-content animate-fade" style={{ maxWidth: '580px' }}>
+          <div data-testid="modal-approve" className="modal-content animate-fade" style={{ maxWidth: '580px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
               <div style={{
                 width: '42px',
@@ -857,6 +865,7 @@ export default function DetailPanel({
                 Authorized Seller Representative:
               </label>
               <input
+                data-testid="input-approver-name"
                 type="text"
                 value={approverName}
                 onChange={(e) => setApproverName(e.target.value)}
@@ -879,6 +888,7 @@ export default function DetailPanel({
                 <span style={{ fontSize: '0.72rem', color: '#007b36', fontWeight: 600 }}>Active Gate</span>
               </label>
               <input
+                data-testid="input-approval-secret"
                 type="password"
                 value={approvalSecret}
                 onChange={(e) => setApprovalSecret(e.target.value)}
@@ -903,6 +913,7 @@ export default function DetailPanel({
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button
+                data-testid="btn-cancel-approve"
                 onClick={() => setShowApproveModal(false)}
                 className="btn btn-paypal-neutral"
                 disabled={isApproving}
@@ -910,6 +921,7 @@ export default function DetailPanel({
                 Cancel
               </button>
               <button
+                data-testid="btn-confirm-approve"
                 onClick={handleConfirmApproval}
                 disabled={isApproving}
                 className="btn btn-paypal-gold"
@@ -924,7 +936,7 @@ export default function DetailPanel({
       {/* Modal: Regenerate with Groq AI with Merchant Notes */}
       {showRedraftModal && (
         <div className="modal-overlay">
-          <div className="modal-content animate-fade" style={{ maxWidth: '560px' }}>
+          <div data-testid="modal-redraft" className="modal-content animate-fade" style={{ maxWidth: '560px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
               <div style={{
                 width: '40px',
@@ -952,6 +964,7 @@ export default function DetailPanel({
                 Merchant Specific Clarifications (Optional):
               </label>
               <textarea
+                data-testid="input-merchant-notes"
                 value={merchantNotes}
                 onChange={(e) => setMerchantNotes(e.target.value)}
                 rows={4}
@@ -983,6 +996,7 @@ export default function DetailPanel({
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button
+                data-testid="btn-cancel-redraft"
                 onClick={() => setShowRedraftModal(false)}
                 className="btn btn-paypal-neutral"
                 disabled={isRedrafting}
@@ -990,6 +1004,7 @@ export default function DetailPanel({
                 Cancel
               </button>
               <button
+                data-testid="btn-execute-redraft"
                 onClick={handleExecuteRedraft}
                 disabled={isRedrafting}
                 className="btn btn-paypal-blue"
@@ -1004,7 +1019,7 @@ export default function DetailPanel({
       {/* Modal: Concede / Accept Claim */}
       {showRejectModal && (
         <div className="modal-overlay">
-          <div className="modal-content animate-fade" style={{ maxWidth: '520px' }}>
+          <div data-testid="modal-reject" className="modal-content animate-fade" style={{ maxWidth: '520px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
               <div style={{
                 width: '40px',
@@ -1032,6 +1047,7 @@ export default function DetailPanel({
                 Concession Reason:
               </label>
               <input
+                data-testid="input-reject-reason"
                 type="text"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
@@ -1053,6 +1069,7 @@ export default function DetailPanel({
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button
+                data-testid="btn-cancel-reject"
                 onClick={() => setShowRejectModal(false)}
                 className="btn btn-paypal-neutral"
                 disabled={isRejecting}
@@ -1060,6 +1077,7 @@ export default function DetailPanel({
                 Cancel
               </button>
               <button
+                data-testid="btn-confirm-reject"
                 onClick={handleConfirmReject}
                 disabled={isRejecting}
                 className="btn btn-paypal-danger"

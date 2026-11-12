@@ -96,7 +96,7 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content animate-fade" style={{ maxWidth: '640px' }}>
+      <div data-testid="modal-simulate" className="modal-content animate-fade" style={{ maxWidth: '640px' }}>
         {/* Header */}
         <div style={{
           display: 'flex',
@@ -295,6 +295,7 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
             Cancel
           </button>
           <button
+            data-testid="btn-trigger-simulation"
             onClick={handleSimulate}
             disabled={loading}
             className="btn btn-paypal-gold"

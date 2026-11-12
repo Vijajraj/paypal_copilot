@@ -47,7 +47,7 @@ export default function AuditTrailModal({ onClose, disputeId }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content animate-fade" style={{ maxWidth: '840px', maxHeight: '90vh' }}>
+      <div data-testid="modal-audit" className="modal-content animate-fade" style={{ maxWidth: '840px', maxHeight: '90vh' }}>
         {/* Modal Header */}
         <div style={{
           display: 'flex',
@@ -117,6 +117,7 @@ export default function AuditTrailModal({ onClose, disputeId }) {
             </div>
 
             <button
+              data-testid="btn-close-audit"
               onClick={onClose}
               style={{
                 background: 'none',

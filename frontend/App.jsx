@@ -37,6 +37,26 @@ export default function App() {
     return () => clearInterval(interval);
   }, [autoSync, isMockMode]);
 
+  // Global Keyboard Navigation for Power Users & Browser Agents
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showSimulateModal) setShowSimulateModal(false);
+        else if (showAuditModal) setShowAuditModal(false);
+      }
+      if ((e.altKey && e.key.toLowerCase() === 's') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's')) {
+        e.preventDefault();
+        setShowSimulateModal(prev => !prev);
+      }
+      if ((e.altKey && e.key.toLowerCase() === 'a') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a')) {
+        e.preventDefault();
+        setShowAuditModal(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSimulateModal, showAuditModal]);
+
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 4500);
@@ -208,6 +228,47 @@ export default function App() {
 
       {/* Main Content Area */}
       <main style={{ flex: 1, maxWidth: '1440px', width: '100%', margin: '0 auto', padding: '0 32px 48px 32px' }}>
+        {/* Professional Merchant & Agent Operations Control Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: '#ffffff',
+          borderRadius: 'var(--radius-md)',
+          padding: '10px 18px',
+          marginBottom: '16px',
+          border: '1px solid var(--border-light)',
+          boxShadow: 'var(--shadow-sm)',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.82rem' }}>
+            <span style={{ fontWeight: 800, color: '#003087', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isMockMode ? '#f59e0b' : '#10b981' }} />
+              Workspace: {isMockMode ? 'Mock Offline Sandbox' : 'PayPal Live Sandbox'}
+            </span>
+            <span style={{ color: '#cbd5e1' }}>•</span>
+            <span style={{ color: '#64748b' }}>
+              Disputes Indexed: <strong style={{ color: '#0f172a' }}>{disputes.length}</strong>
+            </span>
+            {selectedDispute && (
+              <>
+                <span style={{ color: '#cbd5e1' }}>•</span>
+                <span style={{ color: '#64748b' }}>
+                  Focused Case: <strong className="font-mono" style={{ color: '#0070ba' }}>{selectedDispute.id || selectedDispute.dispute_id}</strong>
+                </span>
+              </>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>Shortcuts:</span>
+            <kbd style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', color: '#475569' }}>Alt+S: Simulate</kbd>
+            <kbd style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', color: '#475569' }}>Alt+A: Audit</kbd>
+            <kbd style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', color: '#475569' }}>Esc: Close</kbd>
+          </div>
+        </div>
+
         {activeTab === 'disputes' && (
           <div>
             {/* AG Grid Dispute Table */}

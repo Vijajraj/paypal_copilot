@@ -60,11 +60,14 @@ export default function Navbar({
             </div>
 
             {/* Navigation Links */}
-            <nav style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <nav style={{ display: 'flex', alignItems: 'center', gap: '6px' }} role="tablist" aria-label="Main Navigation">
               <button
+                data-testid="tab-disputes"
+                role="tab"
+                aria-selected={activeTab === 'disputes'}
                 onClick={() => setActiveTab('disputes')}
                 style={{
-                  background: activeTab === 'disputes' ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
+                  background: activeTab === 'disputes' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
                   color: '#ffffff',
                   border: 'none',
                   padding: '8px 16px',
@@ -95,10 +98,13 @@ export default function Navbar({
               </button>
 
               <button
+                data-testid="tab-timeline"
+                role="tab"
+                aria-selected={activeTab === 'timeline'}
                 onClick={() => setActiveTab('timeline')}
                 style={{
-                  background: activeTab === 'timeline' ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
-                  color: activeTab === 'timeline' ? '#ffffff' : 'rgba(255, 255, 255, 0.8)',
+                  background: activeTab === 'timeline' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+                  color: activeTab === 'timeline' ? '#ffffff' : 'rgba(255, 255, 255, 0.85)',
                   border: 'none',
                   padding: '8px 16px',
                   borderRadius: 'var(--radius-pill)',
@@ -116,10 +122,13 @@ export default function Navbar({
               </button>
 
               <button
+                data-testid="tab-restock"
+                role="tab"
+                aria-selected={activeTab === 'restock'}
                 onClick={() => setActiveTab('restock')}
                 style={{
-                  background: activeTab === 'restock' ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
-                  color: activeTab === 'restock' ? '#ffffff' : 'rgba(255, 255, 255, 0.8)',
+                  background: activeTab === 'restock' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+                  color: activeTab === 'restock' ? '#ffffff' : 'rgba(255, 255, 255, 0.85)',
                   border: 'none',
                   padding: '8px 16px',
                   borderRadius: 'var(--radius-pill)',
@@ -142,6 +151,7 @@ export default function Navbar({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {/* Dynamic Auto-Refresh Toggle */}
             <button
+              data-testid="btn-auto-sync"
               onClick={() => setAutoSync && setAutoSync(!autoSync)}
               style={{
                 background: autoSync ? 'rgba(34, 197, 94, 0.25)' : 'rgba(255, 255, 255, 0.1)',
@@ -171,6 +181,7 @@ export default function Navbar({
 
             {/* Sync PayPal Sandbox Button */}
             <button
+              data-testid="btn-sync-paypal"
               onClick={onSync}
               disabled={isSyncing}
               style={{
@@ -195,6 +206,7 @@ export default function Navbar({
 
             {/* Simulate Webhook Button */}
             <button
+              data-testid="btn-simulate-case"
               onClick={onOpenSimulate}
               className="btn btn-paypal-gold"
               style={{ padding: '7px 16px', fontSize: '0.8rem' }}
@@ -206,6 +218,7 @@ export default function Navbar({
 
             {/* Audit Ledger Trigger */}
             <button
+              data-testid="btn-audit-ledger"
               onClick={onOpenAudit}
               style={{
                 background: 'rgba(255, 255, 255, 0.1)',
@@ -228,6 +241,7 @@ export default function Navbar({
 
             {/* Live Sandbox / Mock Indicator */}
             <button
+              data-testid="btn-toggle-sandbox"
               onClick={() => setIsMockMode(!isMockMode)}
               style={{
                 background: isMockMode ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)',

@@ -285,10 +285,12 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
 
   // Action Button Renderer
   const ActionCellRenderer = (params) => {
-    const isSelected = (selectedDispute?.id || selectedDispute?.dispute_id) === (params.data?.id || params.data?.dispute_id);
+    const disputeId = params.data?.id || params.data?.dispute_id;
+    const isSelected = (selectedDispute?.id || selectedDispute?.dispute_id) === disputeId;
     return (
       <div style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}>
         <button
+          data-testid={`btn-select-dispute-${disputeId}`}
           className={isSelected ? 'btn btn-paypal-blue' : 'btn btn-paypal-outline'}
           style={{ padding: '6px 16px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
           onClick={(e) => {
@@ -450,6 +452,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
         {/* PayPal Tab Filter Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
+            data-testid="filter-all"
             onClick={() => setFilterType('ALL')}
             style={{
               background: filterType === 'ALL' ? '#003087' : '#f1f5f9',
@@ -467,6 +470,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           </button>
 
           <button
+            data-testid="filter-waiting"
             onClick={() => setFilterType('WAITING')}
             style={{
               background: filterType === 'WAITING' ? '#003087' : '#f1f5f9',
@@ -484,6 +488,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           </button>
 
           <button
+            data-testid="filter-urgent"
             onClick={() => setFilterType('URGENT')}
             style={{
               background: filterType === 'URGENT' ? '#d92d20' : '#fdf2f2',
@@ -505,6 +510,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           </button>
 
           <button
+            data-testid="filter-resolved"
             onClick={() => setFilterType('RESOLVED')}
             style={{
               background: filterType === 'RESOLVED' ? '#007b36' : '#f1f5f9',
@@ -527,6 +533,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           <div style={{ position: 'relative' }}>
             <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
+              data-testid="input-quick-search"
               type="text"
               placeholder="Search Case ID, Buyer, Order..."
               value={quickSearch}
