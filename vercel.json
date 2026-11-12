@@ -8,6 +8,10 @@
   "installCommand": "npm install",
   "rewrites": [
     {
+      "source": "/disputes",
+      "destination": "https://paypal-copilot-backend.onrender.com/disputes"
+    },
+    {
       "source": "/disputes/:path*",
       "destination": "https://paypal-copilot-backend.onrender.com/disputes/:path*"
     },
@@ -22,6 +26,22 @@
     {
       "source": "/audit",
       "destination": "https://paypal-copilot-backend.onrender.com/audit"
+    },
+    {
+      "source": "/health",
+      "destination": "https://paypal-copilot-backend.onrender.com/health"
+    },
+    {
+      "source": "/health/:path*",
+      "destination": "https://paypal-copilot-backend.onrender.com/health/:path*"
+    },
+    {
+      "source": "/restock/:path*",
+      "destination": "https://paypal-copilot-backend.onrender.com/restock/:path*"
+    },
+    {
+      "source": "/webhooks/:path*",
+      "destination": "https://paypal-copilot-backend.onrender.com/webhooks/:path*"
     },
     {
       "source": "/api/:path*",
