@@ -107,8 +107,12 @@ Fill in:
 - `PAYPAL_WEBHOOK_ID`: From PayPal sandbox webhook configuration
 - `AI_API_KEY`: Groq API key (`openai/gpt-oss-120b`)
 - `APPROVAL_SECRET`: Secret token used to protect the merchant approval endpoint
-- `ELASTIC_URL` & `ELASTIC_API_KEY`: Elastic Cloud credentials (configured with `USE_ELASTIC = True`)
-- `KERNEL_API_KEY`: KERNEL tracking API key
+- `ELASTIC_URL` & `ELASTIC_API_KEY`: Primary Elastic Cloud cluster credentials (`past_disputes` index)
+- `FALLBACK_ELASTIC_URL` & `FALLBACK_ELASTIC_API_KEY`: High-availability fallback Elastic Cloud cluster credentials
+- `KERNEL_API_KEY`: Primary KERNEL tracking API key
+- `FALLBACK_KERNEL_API_KEY`: Secondary fallback KERNEL tracking key
+
+> 📖 **Comprehensive Technical Docs:** See [backend/DOCUMENTATION.md](file:///C:/projects/paypal_copilot/backend/DOCUMENTATION.md) for full request/response schemas, architectural deep dives, and failover mechanics.
 
 ---
 
@@ -116,17 +120,21 @@ Fill in:
 
 | Method | Endpoint | Purpose |
 |---|---|---|
+| `GET` | `/health` | Basic service health check |
+| `GET` | `/health/integrations` | Diagnostic status for Elastic (Primary/Fallback), Kernel, and PayPal |
 | `GET` | `/disputes` | List disputes with optional `?status=` filter |
 | `GET` | `/disputes/{id}` | Full dispute detail conforming to shared contract |
 | `PATCH` | `/disputes/{id}/evidence` | Save seller edits to evidence draft |
 | `POST` | `/disputes/{id}/redraft` | Re-run Groq AI agent with optional merchant notes |
 | `POST` | `/disputes/{id}/approve` | **Approval Gate**: Human signs off, submits to PayPal |
-| `POST` | `/disputes/{id}/reject` | Reject draft / concede claim |
+| `POST` | `/disputes/{id}/reject` | **Concede Claim**: Concede dispute & issue full buyer refund via PayPal API |
 | `POST` | `/sync` | Force pull/refresh from PayPal Sandbox |
 | `GET` | `/timeline` | Dispute response deadlines sorted chronologically |
 | `GET` | `/audit` | SHA-256 chained audit ledger and integrity report |
 | `POST` | `/webhooks/paypal` | PayPal webhook receiver (signature verification + deduplication) |
 | `POST` | `/disputes/simulate` | Demo test harness to simulate incoming PayPal dispute |
+| `GET` | `/restock/inventory` | Channel3 packaging supply inventory inspection |
+| `POST` | `/restock/order` | Channel3 predictive restock with $500 guardrail cap |
 
 ---
 
@@ -151,13 +159,13 @@ Interactive API docs available at: **[http://127.0.0.1:8000/docs](http://127.0.0
 ```bash
 python -m pytest backend/tests -v -p no:asyncio
 ```
-**Test Results:** 12/12 passing unit tests.
+**Test Results:** **39/39 passing unit tests** across all modules.
 
 ---
 
 ## 6. Sponsor Tools & Integrations
 
-- **PayPal Sandbox REST API**: OAuth2 authentication, dispute resolution API (`/v1/customer/disputes`), and webhook signature verification (`/v1/notifications/verify-webhook-signature`).
-- **Elastic Cloud**: Precedent search over 30 synthetic dispute datasets indexed into `past_disputes` (`USE_ELASTIC = True`), with in-code fallback.
+- **PayPal Sandbox REST API**: OAuth2 authentication, dispute resolution API (`/v1/customer/disputes`), claim concession & refund (`/accept-claim`), and webhook signature verification (`/v1/notifications/verify-webhook-signature`).
+- **Elastic Cloud**: Precedent search over 30 synthetic dispute datasets indexed into `past_disputes` (`USE_ELASTIC = True`), with automatic multi-cluster failover and in-code fallback.
 - **Groq / openai/gpt-oss-120b**: Agentic evidence drafting using few-shot prompt guardrails that strictly prohibit hallucinating tracking or documents.
-- **KERNEL**: Carrier tracking proof and GPS destination verification engine across UPS, FedEx, USPS, and DHL.
+- **KERNEL**: Carrier tracking proof and GPS destination verification engine across UPS, FedEx, USPS, and DHL with active key rotation.
