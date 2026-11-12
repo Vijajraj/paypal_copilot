@@ -33,7 +33,7 @@ services:
       - key: PAYPAL_BASE_URL
         value: "https://api-m.sandbox.paypal.com"
       - key: APPROVAL_SECRET
-        generateValue: true
+        sync: false
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET
