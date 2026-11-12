@@ -20,8 +20,9 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
 
   // Status Cell Renderer
   const StatusCellRenderer = (params) => {
+    const data = params.data;
     const status = params.value || '';
-    const approvalState = params.data?.approval_state;
+    const approvalState = data?.approval_state;
     const isConceded = approvalState === 'rejected' || Boolean(data?.seller_approval?.conceded);
     let badge = null;
 
