@@ -7,6 +7,13 @@ const STORAGE_KEY_RESTOCK = 'paypal_copilot_restock_v1';
 const STORAGE_KEY_AUTH_TOKEN = 'paypal_copilot_auth_token_v1';
 const STORAGE_KEY_AUTH_USER = 'paypal_copilot_auth_user_v1';
 
+const rawApiUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+  ? String(import.meta.env.VITE_API_URL).trim()
+  : '';
+
+export const API_BASE = rawApiUrl
+  ? (rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://') ? rawApiUrl : `https://${rawApiUrl}`).replace(/\/$/, '')
+  : '';
 // Authentication storage helpers
 export function getAuthToken() {
   try {
