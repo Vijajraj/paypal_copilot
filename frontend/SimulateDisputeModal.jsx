@@ -95,8 +95,20 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
   };
 
   return (
-    <div className="modal-overlay">
-      <div data-testid="modal-simulate" className="modal-content animate-fade" style={{ maxWidth: '640px' }}>
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        data-testid="modal-simulate"
+        className="modal-content animate-fade"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-simulate-title"
+        aria-describedby="modal-simulate-desc"
+        style={{ maxWidth: '640px' }}
+      >
         {/* Header */}
         <div style={{
           display: 'flex',
@@ -116,13 +128,13 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <Sparkles size={22} color="#ca8a04" />
+              <Sparkles size={22} color="#ca8a04" aria-hidden="true" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#003087' }}>
+              <h2 id="modal-simulate-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#003087' }}>
                 Simulate PayPal Dispute Webhook
               </h2>
-              <p style={{ fontSize: '0.82rem', color: '#475569' }}>
+              <p id="modal-simulate-desc" style={{ fontSize: '0.82rem', color: '#475569' }}>
                 Triggers an incoming customer dispute event to demonstrate autonomous agent defense drafting
               </p>
             </div>
@@ -130,15 +142,16 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
 
           <button
             onClick={onClose}
+            aria-label="Close dispute simulation dialog"
             style={{
               background: 'none',
               border: 'none',
-              color: '#64748b',
+              color: '#475569',
               cursor: 'pointer',
               padding: '4px'
             }}
           >
-            <X size={22} />
+            <X size={22} aria-hidden="true" />
           </button>
         </div>
 
@@ -147,11 +160,15 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
           <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '10px' }}>
             Choose a Demo Scenario Preset:
           </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div role="radiogroup" aria-label="Demo dispute scenarios" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {presets.map(p => (
               <div
                 key={p.id}
+                role="radio"
+                tabIndex="0"
+                aria-checked={selectedPreset === p.id}
                 onClick={() => setSelectedPreset(p.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedPreset(p.id); }}
                 style={{
                   background: selectedPreset === p.id ? '#eff6ff' : '#ffffff',
                   border: `1.5px solid ${selectedPreset === p.id ? '#0070ba' : 'var(--border-light)'}`,
@@ -176,7 +193,7 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
                     {p.carrier} • {p.dueHours}h
                   </span>
                 </div>
-                <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: '1.4' }}>
+                <p style={{ fontSize: '0.78rem', color: '#475569', lineHeight: '1.4' }}>
                   {p.desc}
                 </p>
               </div>
@@ -184,7 +201,11 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
 
             {/* Custom Scenario Option */}
             <div
+              role="radio"
+              tabIndex="0"
+              aria-checked={selectedPreset === 'custom'}
               onClick={() => setSelectedPreset('custom')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedPreset('custom'); }}
               style={{
                 background: selectedPreset === 'custom' ? '#eff6ff' : '#ffffff',
                 border: `1.5px solid ${selectedPreset === 'custom' ? '#0070ba' : 'var(--border-light)'}`,
@@ -196,7 +217,7 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
               <div style={{ fontWeight: 700, color: '#003087', fontSize: '0.9rem' }}>
                 Custom Parameters Scenario
               </div>
-              <p style={{ fontSize: '0.78rem', color: '#64748b' }}>
+              <p style={{ fontSize: '0.78rem', color: '#475569' }}>
                 Specify custom buyer name, disputed amount, carrier, and item description.
               </p>
             </div>
@@ -216,10 +237,11 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
             gap: '12px'
           }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+              <label htmlFor="custom-dispute-reason" style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                 Dispute Reason:
               </label>
               <select
+                id="custom-dispute-reason"
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
                 style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.82rem' }}
@@ -231,10 +253,11 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+              <label htmlFor="custom-dispute-amount" style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                 Disputed Amount (USD):
               </label>
               <input
+                id="custom-dispute-amount"
                 type="number"
                 step="0.01"
                 value={customAmount}
@@ -244,10 +267,11 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+              <label htmlFor="custom-buyer-name" style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                 Buyer Name:
               </label>
               <input
+                id="custom-buyer-name"
                 type="text"
                 value={customBuyer}
                 onChange={(e) => setCustomBuyer(e.target.value)}
@@ -256,10 +280,11 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+              <label htmlFor="custom-carrier-select" style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                 Carrier:
               </label>
               <select
+                id="custom-carrier-select"
                 value={customCarrier}
                 onChange={(e) => setCustomCarrier(e.target.value)}
                 style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.82rem' }}
@@ -272,10 +297,11 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+              <label htmlFor="custom-item-name" style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                 Item Name / Description:
               </label>
               <input
+                id="custom-item-name"
                 type="text"
                 value={customItem}
                 onChange={(e) => setCustomItem(e.target.value)}
@@ -300,7 +326,7 @@ export default function SimulateDisputeModal({ onClose, onSimulated }) {
             disabled={loading}
             className="btn btn-paypal-gold"
           >
-            <Play size={15} />
+            <Play size={15} aria-hidden="true" />
             {loading ? 'Simulating Event & Running AI...' : 'Trigger Simulation'}
           </button>
         </div>

@@ -26,7 +26,7 @@ export default function Navbar({
   setAutoSync
 }) {
   return (
-    <header style={{ marginBottom: '24px' }}>
+    <header role="banner" style={{ marginBottom: '24px' }}>
       {/* Primary Top Bar - Authentic PayPal Corporate Dark Navy */}
       <div style={{
         background: '#001c64',
@@ -152,6 +152,9 @@ export default function Navbar({
             {/* Dynamic Auto-Refresh Toggle */}
             <button
               data-testid="btn-auto-sync"
+              role="switch"
+              aria-checked={Boolean(autoSync)}
+              aria-label={`Live Auto-Sync every 10 seconds: ${autoSync ? 'Enabled' : 'Disabled'}`}
               onClick={() => setAutoSync && setAutoSync(!autoSync)}
               style={{
                 background: autoSync ? 'rgba(34, 197, 94, 0.25)' : 'rgba(255, 255, 255, 0.1)',
@@ -175,7 +178,7 @@ export default function Navbar({
                 borderRadius: '50%',
                 backgroundColor: autoSync ? '#4ade80' : '#94a3b8',
                 boxShadow: autoSync ? '0 0 8px #4ade80' : 'none'
-              }} />
+              }} aria-hidden="true" />
               {autoSync ? 'Live Auto-Sync (10s)' : 'Auto-Sync: Off'}
             </button>
 
@@ -242,6 +245,9 @@ export default function Navbar({
             {/* Live Sandbox / Mock Indicator */}
             <button
               data-testid="btn-toggle-sandbox"
+              role="switch"
+              aria-checked={!isMockMode}
+              aria-label={`Environment mode: ${isMockMode ? 'Mock Offline Sandbox' : 'PayPal Live Sandbox'}`}
               onClick={() => setIsMockMode(!isMockMode)}
               style={{
                 background: isMockMode ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)',
@@ -263,7 +269,7 @@ export default function Navbar({
                 height: '7px',
                 borderRadius: '50%',
                 backgroundColor: isMockMode ? '#facc15' : '#4ade80'
-              }} />
+              }} aria-hidden="true" />
               {isMockMode ? 'Mock Offline' : 'Live Sandbox'}
             </button>
 

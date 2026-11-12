@@ -148,13 +148,32 @@ export default function DetailPanel({
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showApproveModal) setShowApproveModal(false);
+        else if (showRedraftModal) setShowRedraftModal(false);
+        else if (showRejectModal) setShowRejectModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showApproveModal, showRedraftModal, showRejectModal]);
+
   return (
-    <div data-testid="detail-panel" className="paypal-card" style={{ marginTop: '24px', padding: '28px', borderTop: '4px solid #003087', position: 'relative' }}>
+    <section
+      data-testid="detail-panel"
+      role="region"
+      aria-labelledby="detail-panel-title"
+      className="paypal-card"
+      style={{ marginTop: '24px', padding: '28px', borderTop: '4px solid #003087', position: 'relative' }}
+    >
       {/* Close button */}
       {onClose && (
         <button
           data-testid="btn-close-detail"
           onClick={onClose}
+          aria-label="Close Case Details Panel"
           style={{
             position: 'absolute',
             top: '20px',
@@ -168,11 +187,11 @@ export default function DetailPanel({
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            color: '#64748b'
+            color: '#475569'
           }}
-          title="Close details"
+          title="Close details (Esc)"
         >
-          <X size={18} />
+          <X size={18} aria-hidden="true" />
         </button>
       )}
 
@@ -819,8 +838,16 @@ export default function DetailPanel({
 
       {/* Confirmation Modal: Authorize Evidence Submission */}
       {showApproveModal && (
-        <div className="modal-overlay">
-          <div data-testid="modal-approve" className="modal-content animate-fade" style={{ maxWidth: '580px' }}>
+        <div className="modal-overlay" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) setShowApproveModal(false); }}>
+          <div
+            data-testid="modal-approve"
+            className="modal-content animate-fade"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-approve-title"
+            aria-describedby="modal-approve-desc"
+            style={{ maxWidth: '580px' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
               <div style={{
                 width: '42px',
@@ -831,13 +858,13 @@ export default function DetailPanel({
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <ShieldCheck size={26} color="#059669" />
+                <ShieldCheck size={26} color="#059669" aria-hidden="true" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#003087' }}>
+                <h3 id="modal-approve-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#003087' }}>
                   Authorize Evidence Submission
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: '#475569' }}>
+                <p id="modal-approve-desc" style={{ fontSize: '0.82rem', color: '#475569' }}>
                   PayPal Dispute Resolution Center submission signature
                 </p>
               </div>
@@ -861,10 +888,11 @@ export default function DetailPanel({
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '6px' }}>
+              <label htmlFor="input-approver-name" style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '6px' }}>
                 Authorized Seller Representative:
               </label>
               <input
+                id="input-approver-name"
                 data-testid="input-approver-name"
                 type="text"
                 value={approverName}
@@ -883,11 +911,12 @@ export default function DetailPanel({
             </div>
 
             <div style={{ marginBottom: '18px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '6px' }}>
+              <label htmlFor="input-approval-secret" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '6px' }}>
                 <span>Security Gate Token (`APPROVAL_SECRET`):</span>
                 <span style={{ fontSize: '0.72rem', color: '#007b36', fontWeight: 600 }}>Active Gate</span>
               </label>
               <input
+                id="input-approval-secret"
                 data-testid="input-approval-secret"
                 type="password"
                 value={approvalSecret}
@@ -906,7 +935,7 @@ export default function DetailPanel({
               />
             </div>
 
-            <p style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '22px' }}>
+            <p style={{ fontSize: '0.78rem', color: '#475569', marginBottom: '22px' }}>
               By confirming, you authorize submission of this legal evidence response to the PayPal Sandbox Dispute API.
               A cryptographic SHA-256 ledger block and compliance audit entry will be generated.
             </p>
@@ -935,8 +964,16 @@ export default function DetailPanel({
 
       {/* Modal: Regenerate with Groq AI with Merchant Notes */}
       {showRedraftModal && (
-        <div className="modal-overlay">
-          <div data-testid="modal-redraft" className="modal-content animate-fade" style={{ maxWidth: '560px' }}>
+        <div className="modal-overlay" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) setShowRedraftModal(false); }}>
+          <div
+            data-testid="modal-redraft"
+            className="modal-content animate-fade"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-redraft-title"
+            aria-describedby="modal-redraft-desc"
+            style={{ maxWidth: '560px' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
               <div style={{
                 width: '40px',
@@ -947,23 +984,24 @@ export default function DetailPanel({
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <Sparkles size={22} color="#2563eb" />
+                <Sparkles size={22} color="#2563eb" aria-hidden="true" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#003087' }}>
+                <h3 id="modal-redraft-title" style={{ fontSize: '1.2rem', fontWeight: 800, color: '#003087' }}>
                   Regenerate Defense with Groq AI
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                <p id="modal-redraft-desc" style={{ fontSize: '0.8rem', color: '#475569' }}>
                   Powered by <strong style={{ color: '#2563eb' }}>openai/gpt-oss-120b</strong> and Elastic precedent search
                 </p>
               </div>
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '6px' }}>
+              <label htmlFor="input-merchant-notes" style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '6px' }}>
                 Merchant Specific Clarifications (Optional):
               </label>
               <textarea
+                id="input-merchant-notes"
                 data-testid="input-merchant-notes"
                 value={merchantNotes}
                 onChange={(e) => setMerchantNotes(e.target.value)}
@@ -1018,8 +1056,16 @@ export default function DetailPanel({
 
       {/* Modal: Concede / Accept Claim */}
       {showRejectModal && (
-        <div className="modal-overlay">
-          <div data-testid="modal-reject" className="modal-content animate-fade" style={{ maxWidth: '520px' }}>
+        <div className="modal-overlay" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) setShowRejectModal(false); }}>
+          <div
+            data-testid="modal-reject"
+            className="modal-content animate-fade"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-reject-title"
+            aria-describedby="modal-reject-desc"
+            style={{ maxWidth: '520px' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
               <div style={{
                 width: '40px',
@@ -1030,23 +1076,24 @@ export default function DetailPanel({
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <XCircle size={22} color="#dc2626" />
+                <XCircle size={22} color="#dc2626" aria-hidden="true" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#991b1b' }}>
+                <h3 id="modal-reject-title" style={{ fontSize: '1.2rem', fontWeight: 800, color: '#991b1b' }}>
                   Accept Claim & Issue Refund
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                <p id="modal-reject-desc" style={{ fontSize: '0.8rem', color: '#475569' }}>
                   Concede dispute and release ${amountVal} {amountCurr} to the buyer
                 </p>
               </div>
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '6px' }}>
+              <label htmlFor="input-reject-reason" style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#003087', marginBottom: '6px' }}>
                 Concession Reason:
               </label>
               <input
+                id="input-reject-reason"
                 data-testid="input-reject-reason"
                 type="text"
                 value={rejectReason}
@@ -1063,7 +1110,7 @@ export default function DetailPanel({
               />
             </div>
 
-            <p style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '20px' }}>
+            <p style={{ fontSize: '0.78rem', color: '#475569', marginBottom: '20px' }}>
               This action is final and closes the case in PayPal. The reserved funds will be credited back to the customer.
             </p>
 
@@ -1088,6 +1135,6 @@ export default function DetailPanel({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

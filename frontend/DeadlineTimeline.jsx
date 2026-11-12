@@ -57,7 +57,7 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
     .reduce((acc, d) => acc + parseFloat(d.amountVal || 0), 0);
 
   return (
-    <div className="paypal-card" style={{ padding: '28px', borderTop: '4px solid #003087' }}>
+    <section role="region" aria-label="Response Deadline Radar" className="paypal-card" style={{ padding: '28px', borderTop: '4px solid #003087' }}>
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -163,7 +163,16 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
           return (
             <div
               key={dispute.caseId}
+              role="button"
+              tabIndex="0"
+              aria-label={`Case ${dispute.caseId}, Reason: ${dispute.reason}, Due in ${dispute.diffHours} hours, Amount $${dispute.amountVal} ${dispute.amountCurr}`}
               onClick={() => onSelectDispute(dispute)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectDispute(dispute);
+                }
+              }}
               style={{
                 background: bgHighlight,
                 border: `1.5px solid ${borderHighlight}`,
@@ -287,6 +296,6 @@ export default function DeadlineTimeline({ disputes, onSelectDispute }) {
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

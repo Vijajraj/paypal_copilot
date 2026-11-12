@@ -70,7 +70,7 @@ export default function RestockChannel3() {
   };
 
   return (
-    <div className="paypal-card" style={{ padding: '28px', borderTop: '4px solid #003087' }}>
+    <section role="region" aria-label="Autonomous Inventory Restock Channel 3" className="paypal-card" style={{ padding: '28px', borderTop: '4px solid #003087' }}>
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -283,6 +283,6 @@ export default function RestockChannel3() {
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

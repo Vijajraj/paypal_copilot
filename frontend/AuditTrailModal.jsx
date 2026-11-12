@@ -46,8 +46,20 @@ export default function AuditTrailModal({ onClose, disputeId }) {
   };
 
   return (
-    <div className="modal-overlay">
-      <div data-testid="modal-audit" className="modal-content animate-fade" style={{ maxWidth: '840px', maxHeight: '90vh' }}>
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        data-testid="modal-audit"
+        className="modal-content animate-fade"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-audit-title"
+        aria-describedby="modal-audit-desc"
+        style={{ maxWidth: '840px', maxHeight: '90vh' }}
+      >
         {/* Modal Header */}
         <div style={{
           display: 'flex',
@@ -69,13 +81,13 @@ export default function AuditTrailModal({ onClose, disputeId }) {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <History size={22} color="#0070ba" />
+              <History size={22} color="#0070ba" aria-hidden="true" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#003087' }}>
+              <h2 id="modal-audit-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#003087' }}>
                 Cryptographic Audit Ledger
               </h2>
-              <p style={{ fontSize: '0.8rem', color: '#475569' }}>
+              <p id="modal-audit-desc" style={{ fontSize: '0.8rem', color: '#475569' }}>
                 SHA-256 chained audit entries guaranteeing immutable human-in-the-loop compliance
               </p>
             </div>
@@ -85,6 +97,7 @@ export default function AuditTrailModal({ onClose, disputeId }) {
             {disputeId && (
               <button
                 onClick={() => setFilterByCase(!filterByCase)}
+                aria-pressed={filterByCase}
                 style={{
                   background: filterByCase ? '#003087' : '#f1f5f9',
                   color: filterByCase ? '#ffffff' : '#475569',
@@ -112,22 +125,23 @@ export default function AuditTrailModal({ onClose, disputeId }) {
               color: integrity?.valid ? '#065f46' : '#991b1b',
               fontWeight: 700
             }}>
-              <ShieldCheck size={14} color={integrity?.valid ? '#059669' : '#dc2626'} />
+              <ShieldCheck size={14} color={integrity?.valid ? '#059669' : '#dc2626'} aria-hidden="true" />
               {integrity?.valid ? 'Chain Integrity: 100% Valid' : 'Integrity Mismatch'}
             </div>
 
             <button
               data-testid="btn-close-audit"
               onClick={onClose}
+              aria-label="Close audit ledger dialog"
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#64748b',
+                color: '#475569',
                 cursor: 'pointer',
                 padding: '4px'
               }}
             >
-              <X size={22} />
+              <X size={22} aria-hidden="true" />
             </button>
           </div>
         </div>

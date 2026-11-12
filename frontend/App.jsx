@@ -6,6 +6,7 @@ import DeadlineTimeline from './DeadlineTimeline.jsx';
 import RestockChannel3 from './RestockChannel3.jsx';
 import AuditTrailModal from './AuditTrailModal.jsx';
 import SimulateDisputeModal from './SimulateDisputeModal.jsx';
+import KeyboardShortcutsModal from './KeyboardShortcutsModal.jsx';
 import { initialMockDisputes } from './initialMockData.js';
 import { api, normalizeDispute } from './apiClient.js';
 
@@ -21,6 +22,7 @@ export default function App() {
   // Modals
   const [showSimulateModal, setShowSimulateModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   // Fetch disputes on initial load or mode change
@@ -37,12 +39,20 @@ export default function App() {
     return () => clearInterval(interval);
   }, [autoSync, isMockMode]);
 
-  // Global Keyboard Navigation for Power Users & Browser Agents
+  // Global Keyboard Navigation for Power Users, Screen Readers & Browser Agents
   useEffect(() => {
     const handleKeyDown = (e) => {
+      const tag = e.target?.tagName?.toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+
       if (e.key === 'Escape') {
         if (showSimulateModal) setShowSimulateModal(false);
         else if (showAuditModal) setShowAuditModal(false);
+        else if (showShortcutsModal) setShowShortcutsModal(false);
+      }
+      if (!isInput && (e.key === '?' || (e.shiftKey && e.key === '?'))) {
+        e.preventDefault();
+        setShowShortcutsModal(prev => !prev);
       }
       if ((e.altKey && e.key.toLowerCase() === 's') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's')) {
         e.preventDefault();
@@ -55,7 +65,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showSimulateModal, showAuditModal]);
+  }, [showSimulateModal, showAuditModal, showShortcutsModal]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -188,6 +198,11 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f5f7fa' }}>
+      {/* WCAG 2.4.1 Skip Link for Screen Readers and Keyboard Navigation */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -203,31 +218,42 @@ export default function App() {
         setAutoSync={setAutoSync}
       />
 
-      {/* PayPal Style Toast Notification */}
+      {/* Accessible Live Toast Notification */}
       {toastMessage && (
-        <div style={{
-          position: 'fixed',
-          top: '80px',
-          right: '32px',
-          zIndex: 2000,
-          background: '#003087',
-          color: '#ffffff',
-          boxShadow: '0 10px 25px rgba(0, 48, 135, 0.35)',
-          borderRadius: 'var(--radius-pill)',
-          padding: '12px 24px',
-          fontSize: '0.88rem',
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-        }} className="animate-fade">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ade80' }} />
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          style={{
+            position: 'fixed',
+            top: '80px',
+            right: '32px',
+            zIndex: 2000,
+            background: '#003087',
+            color: '#ffffff',
+            boxShadow: '0 10px 25px rgba(0, 48, 135, 0.35)',
+            borderRadius: 'var(--radius-pill)',
+            padding: '12px 24px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}
+          className="animate-fade"
+        >
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ade80' }} aria-hidden="true" />
           {toastMessage}
         </div>
       )}
 
-      {/* Main Content Area */}
-      <main style={{ flex: 1, maxWidth: '1440px', width: '100%', margin: '0 auto', padding: '0 32px 48px 32px' }}>
+      {/* Main Content Area Landmark */}
+      <main
+        id="main-content"
+        role="main"
+        tabIndex="-1"
+        style={{ flex: 1, maxWidth: '1440px', width: '100%', margin: '0 auto', padding: '0 32px 48px 32px', outline: 'none' }}
+      >
         {/* Professional Merchant & Agent Operations Control Bar */}
         <div style={{
           display: 'flex',
@@ -244,28 +270,50 @@ export default function App() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.82rem' }}>
             <span style={{ fontWeight: 800, color: '#003087', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isMockMode ? '#f59e0b' : '#10b981' }} />
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isMockMode ? '#f59e0b' : '#10b981' }} aria-hidden="true" />
               Workspace: {isMockMode ? 'Mock Offline Sandbox' : 'PayPal Live Sandbox'}
             </span>
-            <span style={{ color: '#cbd5e1' }}>•</span>
-            <span style={{ color: '#64748b' }}>
+            <span style={{ color: '#cbd5e1' }} aria-hidden="true">•</span>
+            <span style={{ color: '#475569' }}>
               Disputes Indexed: <strong style={{ color: '#0f172a' }}>{disputes.length}</strong>
             </span>
             {selectedDispute && (
               <>
-                <span style={{ color: '#cbd5e1' }}>•</span>
-                <span style={{ color: '#64748b' }}>
+                <span style={{ color: '#cbd5e1' }} aria-hidden="true">•</span>
+                <span style={{ color: '#475569' }}>
                   Focused Case: <strong className="font-mono" style={{ color: '#0070ba' }}>{selectedDispute.id || selectedDispute.dispute_id}</strong>
                 </span>
               </>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>Shortcuts:</span>
-            <kbd style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', color: '#475569' }}>Alt+S: Simulate</kbd>
-            <kbd style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', color: '#475569' }}>Alt+A: Audit</kbd>
-            <kbd style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', color: '#475569' }}>Esc: Close</kbd>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.74rem', color: '#475569', fontWeight: 700 }}>Quick Keys:</span>
+            <span className="kbd-badge">Alt+S: Simulate</span>
+            <span className="kbd-badge">Alt+A: Audit</span>
+            <span className="kbd-badge">Esc: Close</span>
+            <button
+              data-testid="btn-open-shortcuts"
+              onClick={() => setShowShortcutsModal(true)}
+              aria-label="Open Keyboard Shortcuts and Accessibility Guide"
+              style={{
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: 'var(--radius-pill)',
+                padding: '3px 10px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                color: '#003087',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginLeft: '6px'
+              }}
+            >
+              <span>Guide</span>
+              <kbd style={{ background: '#ffffff', border: '1px solid #94a3b8', borderRadius: '3px', padding: '0 4px', fontSize: '0.68rem', fontWeight: 800 }}>?</kbd>
+            </button>
           </div>
         </div>
 
@@ -322,17 +370,31 @@ export default function App() {
         />
       )}
 
-      {/* Official PayPal Style Footer */}
-      <footer style={{
-        background: '#ffffff',
-        borderTop: '1px solid var(--border-light)',
-        padding: '24px 32px',
-        fontSize: '0.8rem',
-        color: '#687173'
-      }}>
+      {showShortcutsModal && (
+        <KeyboardShortcutsModal
+          onClose={() => setShowShortcutsModal(false)}
+        />
+      )}
+
+      {/* Official PayPal Style Footer Landmark */}
+      <footer
+        role="contentinfo"
+        style={{
+          background: '#ffffff',
+          borderTop: '1px solid var(--border-light)',
+          padding: '24px 32px',
+          fontSize: '0.8rem',
+          color: '#475569'
+        }}
+      >
         <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', gap: '20px', fontWeight: 600, color: '#0070ba' }}>
-            <span style={{ cursor: 'pointer' }}>Help & Contact</span>
+            <button
+              onClick={() => setShowShortcutsModal(true)}
+              style={{ background: 'none', border: 'none', color: '#0070ba', fontWeight: 700, cursor: 'pointer', padding: 0, font: 'inherit' }}
+            >
+              Shortcuts & Accessibility
+            </button>
             <span style={{ cursor: 'pointer' }}>Security</span>
             <span style={{ cursor: 'pointer' }}>Seller Protection</span>
             <span style={{ cursor: 'pointer' }}>Legal</span>

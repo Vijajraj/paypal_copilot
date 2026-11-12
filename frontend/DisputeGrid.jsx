@@ -293,13 +293,15 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           data-testid={`btn-select-dispute-${disputeId}`}
           className={isSelected ? 'btn btn-paypal-blue' : 'btn btn-paypal-outline'}
           style={{ padding: '6px 16px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+          aria-label={`View Case details for ${disputeId}`}
+          title={`Open Case ${disputeId} in evidence studio`}
           onClick={(e) => {
             e.stopPropagation();
             onSelectDispute(params.data);
           }}
         >
           View Case
-          <ChevronRight size={13} />
+          <ChevronRight size={13} aria-hidden="true" />
         </button>
       </div>
     );
@@ -437,7 +439,7 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
   ).length;
 
   return (
-    <div className="paypal-card" style={{ padding: '24px' }}>
+    <section className="paypal-card" role="region" aria-label="Disputes Resolution Center Table" style={{ padding: '24px' }}>
       {/* PayPal Tabs and Filter Bar */}
       <div style={{
         display: 'flex',
@@ -450,9 +452,12 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
         paddingBottom: '16px'
       }}>
         {/* PayPal Tab Filter Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div role="tablist" aria-label="Dispute status filters" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
             data-testid="filter-all"
+            role="tab"
+            aria-selected={filterType === 'ALL'}
+            aria-label={`All Disputes, ${disputes.length} cases`}
             onClick={() => setFilterType('ALL')}
             style={{
               background: filterType === 'ALL' ? '#003087' : '#f1f5f9',
@@ -471,6 +476,9 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
 
           <button
             data-testid="filter-waiting"
+            role="tab"
+            aria-selected={filterType === 'WAITING'}
+            aria-label={`Requires Response, ${waitingCount} cases pending`}
             onClick={() => setFilterType('WAITING')}
             style={{
               background: filterType === 'WAITING' ? '#003087' : '#f1f5f9',
@@ -489,6 +497,9 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
 
           <button
             data-testid="filter-urgent"
+            role="tab"
+            aria-selected={filterType === 'URGENT'}
+            aria-label="Urgent disputes with less than 24 hours remaining"
             onClick={() => setFilterType('URGENT')}
             style={{
               background: filterType === 'URGENT' ? '#d92d20' : '#fdf2f2',
@@ -505,12 +516,15 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
               transition: 'all 0.15s'
             }}
           >
-            <AlertTriangle size={14} />
+            <AlertTriangle size={14} aria-hidden="true" />
             Urgent (&lt; 24h)
           </button>
 
           <button
             data-testid="filter-resolved"
+            role="tab"
+            aria-selected={filterType === 'RESOLVED'}
+            aria-label="Resolved and conceded cases"
             onClick={() => setFilterType('RESOLVED')}
             style={{
               background: filterType === 'RESOLVED' ? '#007b36' : '#f1f5f9',
@@ -531,10 +545,11 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
         {/* Quick Search */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ position: 'relative' }}>
-            <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+            <Search size={15} color="#64748b" aria-hidden="true" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               data-testid="input-quick-search"
               type="text"
+              aria-label="Search disputes by Case ID, Buyer Name, or Order"
               placeholder="Search Case ID, Buyer, Order..."
               value={quickSearch}
               onChange={(e) => setQuickSearch(e.target.value)}
@@ -562,12 +577,17 @@ export default function DisputeGrid({ disputes, selectedDispute, onSelectDispute
           defaultColDef={defaultColDef}
           rowSelection="single"
           onRowClicked={onRowClicked}
+          onCellKeyDown={(params) => {
+            if (params.event.key === 'Enter' || params.event.key === ' ') {
+              onSelectDispute(params.data);
+            }
+          }}
           animateRows={true}
           headerHeight={48}
           rowHeight={68}
-          overlayNoRowsTemplate="<span style='color: #64748b;'>No disputes match your filter.</span>"
+          overlayNoRowsTemplate="<span style='color: #475569; font-weight: 600;'>No disputes match your filter.</span>"
         />
       </div>
-    </div>
+    </section>
   );
 }
