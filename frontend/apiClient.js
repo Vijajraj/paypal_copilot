@@ -5,8 +5,12 @@ const STORAGE_KEY_DISPUTES = 'paypal_copilot_disputes_v1';
 const STORAGE_KEY_AUDIT = 'paypal_copilot_audit_v1';
 const STORAGE_KEY_RESTOCK = 'paypal_copilot_restock_v1';
 
-export const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
-  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+const rawApiUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+  ? String(import.meta.env.VITE_API_URL).trim()
+  : '';
+
+export const API_BASE = rawApiUrl
+  ? (rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://') ? rawApiUrl : `https://${rawApiUrl}`).replace(/\/$/, '')
   : '';
 
 export const DEFAULT_APPROVAL_SECRET = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_APPROVAL_SECRET)
