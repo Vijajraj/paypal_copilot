@@ -8,5 +8,8 @@ PAYPAL_WEBHOOK_ID = ""      # from the PayPal sandbox app after registering the 
 AI_API_KEY = ""
 ELASTIC_URL = ""            # only when USE_ELASTIC = True
 ELASTIC_API_KEY = ""
+FALLBACK_ELASTIC_URL = ""   # automatic fallback if primary Elastic ends or fails
+FALLBACK_ELASTIC_API_KEY = ""
 KERNEL_API_KEY = ""         # only if you build the stretch feature
+FALLBACK_KERNEL_API_KEY = ""  # automatic fallback if primary Kernel ends or fails
 APPROVAL_SECRET = ""        # any long random string, protects the approve endpoint

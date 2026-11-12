@@ -11,6 +11,8 @@ from .models import (
 from .paypal_client import paypal_client
 from .sync import sync_disputes_from_paypal
 from .agent import copilot_agent
+from .search import search_service
+from .services.carrier_kernel import carrier_kernel
 from .services.audit_ledger import audit_ledger
 from .services.guardrails import guardrail_engine
 from .services.zapier_service import zapier_service
@@ -82,6 +84,24 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+@app.get("/health/integrations")
+@app.get("/api/health/integrations")
+def health_integrations():
+    """API Optimization & Failover Monitoring: Reports status of Elastic (Primary vs Fallback), Kernel & PayPal."""
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "elastic": search_service.get_status(),
+        "kernel": {
+            "active_key_suffix": f"...{carrier_kernel.get_active_key()[-6:]}" if carrier_kernel.get_active_key() else "none",
+            "fallback_configured": bool(carrier_kernel._fallback_key)
+        },
+        "paypal_sandbox": {
+            "token_cached": bool(paypal_client._cached_token),
+            "demo_mode": DEMO_MODE
+        }
+    }
 
 # 1. GET /disputes - List with filters
 @app.get("/disputes")

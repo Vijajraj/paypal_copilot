@@ -31,6 +31,15 @@ class PayPalClient:
     def __init__(self):
         self._cached_token: Optional[str] = None
         self._token_expires_at: float = 0.0
+        self._client: Optional[httpx.Client] = None
+
+    def _get_client(self) -> httpx.Client:
+        """Returns pooled persistent httpx Client with keep-alive limits."""
+        if self._client is None or self._client.is_closed:
+            limits = httpx.Limits(max_keepalive_connections=10, max_connections=20)
+            timeout = httpx.Timeout(connect=3.0, read=7.0, write=3.0, pool=10.0)
+            self._client = httpx.Client(limits=limits, timeout=timeout)
+        return self._client
 
     def get_token(self) -> Optional[str]:
         """Fetches or returns cached OAuth2 Bearer token from PayPal Sandbox."""
@@ -43,19 +52,19 @@ class PayPalClient:
 
         url = f"{PAYPAL_BASE_URL}{PAYPAL_TOKEN_PATH}"
         try:
-            with httpx.Client(timeout=10.0) as client:
-                res = client.post(
-                    url,
-                    data={"grant_type": "client_credentials"},
-                    auth=(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET),
-                    headers={"Accept": "application/json", "Accept-Language": "en_US"}
-                )
-                if res.status_code == 200:
-                    data = res.json()
-                    self._cached_token = data.get("access_token")
-                    expires_in = data.get("expires_in", 3600)
-                    self._token_expires_at = time.time() + expires_in
-                    return self._cached_token
+            client = self._get_client()
+            res = client.post(
+                url,
+                data={"grant_type": "client_credentials"},
+                auth=(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET),
+                headers={"Accept": "application/json", "Accept-Language": "en_US"}
+            )
+            if res.status_code == 200:
+                data = res.json()
+                self._cached_token = data.get("access_token")
+                expires_in = data.get("expires_in", 3600)
+                self._token_expires_at = time.time() + expires_in
+                return self._cached_token
         except Exception as e:
             print(f"[PayPalClient] Auth token error: {e}")
 
@@ -68,12 +77,12 @@ class PayPalClient:
             url = f"{PAYPAL_BASE_URL}{PAYPAL_DISPUTES_PATH}?page_size={page_size}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             try:
-                with httpx.Client(timeout=10.0) as client:
-                    res = client.get(url, headers=headers)
-                    if res.status_code == 200:
-                        items = res.json().get("items", [])
-                        if items:
-                            return items
+                client = self._get_client()
+                res = client.get(url, headers=headers)
+                if res.status_code == 200:
+                    items = res.json().get("items", [])
+                    if items:
+                        return items
             except Exception as e:
                 print(f"[PayPalClient] List disputes error: {e}")
 
@@ -86,10 +95,10 @@ class PayPalClient:
             url = f"{PAYPAL_BASE_URL}{PAYPAL_DISPUTES_PATH}/{dispute_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             try:
-                with httpx.Client(timeout=10.0) as client:
-                    res = client.get(url, headers=headers)
-                    if res.status_code == 200:
-                        return res.json()
+                client = self._get_client()
+                res = client.get(url, headers=headers)
+                if res.status_code == 200:
+                    return res.json()
             except Exception as e:
                 print(f"[PayPalClient] Get dispute error: {e}")
         return None
@@ -100,10 +109,10 @@ class PayPalClient:
             url = f"{PAYPAL_BASE_URL}{PAYPAL_ORDERS_PATH}/{order_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             try:
-                with httpx.Client(timeout=10.0) as client:
-                    res = client.get(url, headers=headers)
-                    if res.status_code == 200:
-                        return res.json()
+                client = self._get_client()
+                res = client.get(url, headers=headers)
+                if res.status_code == 200:
+                    return res.json()
             except Exception as e:
                 print(f"[PayPalClient] Get order error: {e}")
         return None
@@ -133,13 +142,13 @@ class PayPalClient:
                 "notes": evidence_text
             }
             try:
-                with httpx.Client(timeout=10.0) as client:
-                    res = client.post(url, headers=headers, json=payload)
-                    return {
-                        "status_code": res.status_code,
-                        "data": res.json() if res.content else {},
-                        "submitted": res.status_code in [200, 201, 204]
-                    }
+                client = self._get_client()
+                res = client.post(url, headers=headers, json=payload)
+                return {
+                    "status_code": res.status_code,
+                    "data": res.json() if res.content else {},
+                    "submitted": res.status_code in [200, 201, 204]
+                }
             except Exception as e:
                 print(f"[PayPalClient] Submit evidence error: {e}")
 
@@ -173,14 +182,14 @@ class PayPalClient:
                 "accept_claim_reason": "DID_NOT_SHIP_MERCHANDISE"
             }
             try:
-                with httpx.Client(timeout=10.0) as client:
-                    res = client.post(url, headers=headers, json=payload)
-                    if res.status_code in [200, 201, 204]:
-                        return {
-                            "status_code": res.status_code,
-                            "data": res.json() if res.content else {},
-                            "conceded": True
-                        }
+                client = self._get_client()
+                res = client.post(url, headers=headers, json=payload)
+                if res.status_code in [200, 201, 204]:
+                    return {
+                        "status_code": res.status_code,
+                        "data": res.json() if res.content else {},
+                        "conceded": True
+                    }
             except Exception as e:
                 print(f"[PayPalClient] Accept claim error: {e}")
 
@@ -219,11 +228,11 @@ class PayPalClient:
         }
 
         try:
-            with httpx.Client(timeout=8.0) as client:
-                res = client.post(url, headers=req_headers, json=payload)
-                if res.status_code == 200:
-                    status = res.json().get("verification_status")
-                    return status == "SUCCESS"
+            client = self._get_client()
+            res = client.post(url, headers=req_headers, json=payload)
+            if res.status_code == 200:
+                status = res.json().get("verification_status")
+                return status == "SUCCESS"
         except Exception as e:
             print(f"[PayPalClient] Webhook verification error: {e}")
 
