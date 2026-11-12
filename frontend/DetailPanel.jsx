@@ -24,7 +24,7 @@ import {
   Sparkles,
   Info
 } from 'lucide-react';
-import { DEFAULT_APPROVAL_SECRET } from './apiClient.js';
+import { Config, DEFAULT_APPROVAL_SECRET } from './apiClient.js';
 
 export default function DetailPanel({
   dispute,
@@ -55,7 +55,7 @@ export default function DetailPanel({
   const [isRedrafting, setIsRedrafting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [approverName, setApproverName] = useState('Authorized Seller Representative');
-  const [approvalSecret, setApprovalSecret] = useState(DEFAULT_APPROVAL_SECRET);
+  const [approvalSecret, setApprovalSecret] = useState(Config.APPROVAL_SECRET);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [copied, setCopied] = useState(false);

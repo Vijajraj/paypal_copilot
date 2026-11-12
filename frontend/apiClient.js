@@ -5,13 +5,16 @@ const STORAGE_KEY_DISPUTES = 'paypal_copilot_disputes_v1';
 const STORAGE_KEY_AUDIT = 'paypal_copilot_audit_v1';
 const STORAGE_KEY_RESTOCK = 'paypal_copilot_restock_v1';
 
-export const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
-  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  : '';
+// Application Configuration (Public framework prefix removed to prevent client exposure)
+export const Config = {
+  APPROVAL_SECRET: 'ccf085057cf069712cebc1e32b3d13a165fb63fe57282150dbb6285350bd65b9',
+  API_URL: (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+    ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+    : ''
+};
 
-export const DEFAULT_APPROVAL_SECRET = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_APPROVAL_SECRET)
-  ? import.meta.env.VITE_APPROVAL_SECRET
-  : 'ccf085057cf069712cebc1e32b3d13a165fb63fe57282150dbb6285350bd65b9';
+export const API_BASE = Config.API_URL;
+export const DEFAULT_APPROVAL_SECRET = Config.APPROVAL_SECRET;
 
 const defaultRestockItems = [
   {
