@@ -131,6 +131,65 @@ The backend features an automatic 3-tier precedence failover system (`backend/ap
 
 ## 5. Complete REST API Specification
 
+### Authentication & Role-Based Access Control (RBAC)
+
+FastAPI endpoints protected by RFC 7519 JSON Web Tokens (JWT) using `HS256` signing and PBKDF2-HMAC-SHA256 password hashing.
+
+| Role | Permissions |
+| :--- | :--- |
+| **`admin`** | Full read/write access, dispute approvals, simulation, audit logs, and user management. |
+| **`analyst`** | Review disputes, edit evidence, generate Groq AI redrafts, and submit approved evidence to PayPal. |
+| **`viewer`** | Read-only access. Can inspect disputes, timelines, and AI drafts, but cannot trigger approvals or simulations. |
+
+#### `POST /api/auth/register`
+Creates a new merchant or analyst user profile and generates an immediate 24-hour JWT Bearer token.
+- **Request Body:**
+  ```json
+  {
+    "email": "analyst@yourcompany.com",
+    "password": "SecurePassword123!",
+    "full_name": "Jordan Miller",
+    "role": "analyst"
+  }
+  ```
+- **Response `200 OK`:**
+  ```json
+  {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer",
+    "user": {
+      "id": "usr_78a1f893bc42",
+      "email": "analyst@yourcompany.com",
+      "full_name": "Jordan Miller",
+      "role": "analyst",
+      "created_at": "2026-11-12T23:30:00Z"
+    }
+  }
+  ```
+
+#### `POST /api/auth/login`
+Authenticates user credentials and returns a signed access token.
+- **Request Body:**
+  ```json
+  {
+    "email": "admin@paypalcopilot.com",
+    "password": "Admin123!"
+  }
+  ```
+- **Response `200 OK`:** Returns access token and user metadata.
+
+#### `GET /api/auth/me`
+Fetches the currently authenticated profile from the provided `Authorization: Bearer <token>` header.
+- **Response `200 OK`:** `{ "success": true, "user": { ... } }`
+
+#### `GET /api/auth/demo-users`
+Returns metadata and pre-configured credentials for quick 1-click evaluation accounts (`admin`, `analyst`, and `viewer`).
+
+#### `POST /api/auth/logout`
+Acknowledge user session termination.
+
+---
+
 ### System Health & Diagnostics
 
 #### `GET /health`
@@ -431,15 +490,24 @@ Each operation records a chained block (`backend/app/services/audit_ledger.py`):
 
 ---
 
-## 8. Automated Test Suite (39 Tests)
+## 8. Automated Test Suite (49 Tests)
 
-The backend features 39 automated tests guaranteeing full coverage across all functional components:
+The backend features 49 automated tests guaranteeing full coverage across all functional components:
 
 ```bash
 python -m pytest backend/tests -v -p no:asyncio
 ```
 
 ### Test Suite Structure:
+- `backend/tests/test_auth.py`:
+  - `test_password_hashing`: Validates PBKDF2-HMAC-SHA256 password hashing with random salt.
+  - `test_jwt_token_lifecycle`: Validates JWT creation, payload encoding, expiration, and decoding.
+  - `test_demo_users_endpoint`: Validates demo roles metadata.
+  - `test_login_demo_admin`, `test_login_demo_analyst`, `test_login_demo_viewer`: Validates authentication for all 3 roles.
+  - `test_login_invalid_password`: Validates 401 Unauthorized handling.
+  - `test_auth_me_authenticated`: Validates Bearer token profile resolution.
+  - `test_register_new_user`: Validates dynamic user creation.
+  - `test_viewer_cannot_approve_dispute`: Validates 403 Forbidden role gate for read-only Viewers.
 - `backend/tests/test_fallback_and_optimization.py`:
   - `test_health_integrations_endpoint`: Validates `/health/integrations` diagnostics.
   - `test_kernel_fallback_key_rotation`: Validates Kernel active key selection and fallback rotation.

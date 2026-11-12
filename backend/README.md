@@ -159,7 +159,7 @@ Interactive API docs available at: **[http://127.0.0.1:8000/docs](http://127.0.0
 ```bash
 python -m pytest backend/tests -v -p no:asyncio
 ```
-**Test Results:** **39/39 passing unit tests** across all modules.
+**Test Results:** **49/49 passing unit tests** across all modules including full JWT Authentication & RBAC role checks.
 
 ---
 

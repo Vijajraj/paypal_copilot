@@ -1,12 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "framework": "vite",
-  "rootDirectory": "frontend",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "cd frontend && npm install",
   "rewrites": [
+    {
+      "source": "/disputes",
+      "destination": "https://paypal-copilot-backend.onrender.com/disputes"
+    },
     {
       "source": "/disputes/:path*",
       "destination": "https://paypal-copilot-backend.onrender.com/disputes/:path*"
@@ -22,6 +24,22 @@
     {
       "source": "/audit",
       "destination": "https://paypal-copilot-backend.onrender.com/audit"
+    },
+    {
+      "source": "/health",
+      "destination": "https://paypal-copilot-backend.onrender.com/health"
+    },
+    {
+      "source": "/health/:path*",
+      "destination": "https://paypal-copilot-backend.onrender.com/health/:path*"
+    },
+    {
+      "source": "/restock/:path*",
+      "destination": "https://paypal-copilot-backend.onrender.com/restock/:path*"
+    },
+    {
+      "source": "/webhooks/:path*",
+      "destination": "https://paypal-copilot-backend.onrender.com/webhooks/:path*"
     },
     {
       "source": "/api/:path*",

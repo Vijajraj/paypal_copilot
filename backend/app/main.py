@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, Header, Query, Request, status
+from fastapi import FastAPI, HTTPException, Header, Query, Request, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from .config import FRONTEND_ORIGIN, DEMO_MODE
 from .database import db
@@ -19,6 +19,8 @@ from .services.zapier_service import zapier_service
 from .webhooks import router as webhook_router
 from .routes.restock import router as restock_router
 from .routes.zapier import router as zapier_router
+from .routes.auth import router as auth_router
+from .auth import get_current_user_optional
 
 import os
 
@@ -47,6 +49,7 @@ app.add_middleware(
 app.include_router(webhook_router)
 app.include_router(restock_router)
 app.include_router(zapier_router)
+app.include_router(auth_router)
 
 def to_dict(obj):
     """API Optimization: Fast, warning-free model serialization."""
@@ -200,11 +203,13 @@ def redraft_dispute_evidence(dispute_id: str, payload: RedraftRequest = RedraftR
 def approve_dispute(
     dispute_id: str,
     payload: ApproveRequest = ApproveRequest(),
-    x_approval_secret: Optional[str] = Header(None)
+    x_approval_secret: Optional[str] = Header(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
     Approval Gate (Section 10):
     - Explicit human approval required in code.
+    - Checks user role (Viewers cannot submit).
     - Checks APPROVAL_SECRET to ensure authorized access.
     - Sets approval_state = 'submitted'.
     - Submits evidence to PayPal.
@@ -213,6 +218,13 @@ def approve_dispute(
     dispute = db.get_by_id(dispute_id)
     if not dispute:
         raise HTTPException(status_code=404, detail=f"Dispute '{dispute_id}' not found.")
+
+    # Role guardrail: Viewers cannot approve disputes
+    if isinstance(current_user, dict) and current_user.get("role") == "viewer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Accounts with 'viewer' role have read-only access. Log in as an Admin or Dispute Analyst to submit evidence."
+        )
 
     # Validate APPROVAL_SECRET if configured
     provided_secret = payload.approval_secret or x_approval_secret
@@ -224,7 +236,10 @@ def approve_dispute(
             )
 
     # Human-in-the-loop guardrail
-    approver = guardrail_engine.validate_human_authorization(payload.approver_id)
+    approver_candidate = payload.approver_id
+    if (not approver_candidate or approver_candidate == "merchant_owner_01") and isinstance(current_user, dict):
+        approver_candidate = f"{current_user.get('full_name', 'User')} ({current_user.get('role', 'analyst')})"
+    approver = guardrail_engine.validate_human_authorization(approver_candidate)
 
     # 1. Update dispute state
     now = datetime.now(timezone.utc).isoformat()

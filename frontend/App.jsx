@@ -7,8 +7,9 @@ import RestockChannel3 from './RestockChannel3.jsx';
 import AuditTrailModal from './AuditTrailModal.jsx';
 import SimulateDisputeModal from './SimulateDisputeModal.jsx';
 import KeyboardShortcutsModal from './KeyboardShortcutsModal.jsx';
+import AuthModal from './AuthModal.jsx';
 import { initialMockDisputes } from './initialMockData.js';
-import { api, normalizeDispute } from './apiClient.js';
+import { api, normalizeDispute, getAuthUser } from './apiClient.js';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('disputes'); // 'disputes' | 'timeline' | 'restock'
@@ -19,11 +20,27 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
 
+  // Authentication & RBAC User State
+  const [currentUser, setCurrentUser] = useState(() => getAuthUser() || {
+    id: 'usr_admin_001',
+    email: 'admin@paypalcopilot.com',
+    full_name: 'Sarah Jenkins',
+    role: 'admin'
+  });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   // Modals
   const [showSimulateModal, setShowSimulateModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Sync authenticated user on mount
+  useEffect(() => {
+    api.getMe().then((user) => {
+      if (user) setCurrentUser(user);
+    });
+  }, []);
 
   // Fetch disputes on initial load or mode change
   useEffect(() => {
@@ -46,7 +63,8 @@ export default function App() {
       const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
 
       if (e.key === 'Escape') {
-        if (showSimulateModal) setShowSimulateModal(false);
+        if (showAuthModal) setShowAuthModal(false);
+        else if (showSimulateModal) setShowSimulateModal(false);
         else if (showAuditModal) setShowAuditModal(false);
         else if (showShortcutsModal) setShowShortcutsModal(false);
       }
@@ -216,6 +234,8 @@ export default function App() {
         setIsMockMode={setIsMockMode}
         autoSync={autoSync}
         setAutoSync={setAutoSync}
+        currentUser={currentUser}
+        onOpenAuth={() => setShowAuthModal(true)}
       />
 
       {/* Accessible Live Toast Notification */}
@@ -335,6 +355,7 @@ export default function App() {
                 onSaveEvidence={handleSaveEvidence}
                 onRedraft={handleRedraft}
                 onClose={() => setSelectedDispute(null)}
+                currentUser={currentUser}
               />
             )}
           </div>
@@ -356,6 +377,16 @@ export default function App() {
       </main>
 
       {/* Modals */}
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          currentUser={currentUser}
+          onUserChange={(newUser) => setCurrentUser(newUser)}
+          showToast={showToast}
+        />
+      )}
+
       {showSimulateModal && (
         <SimulateDisputeModal
           onClose={() => setShowSimulateModal(false)}

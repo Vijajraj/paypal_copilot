@@ -13,3 +13,4 @@ FALLBACK_ELASTIC_API_KEY = ""
 KERNEL_API_KEY = ""         # only if you build the stretch feature
 FALLBACK_KERNEL_API_KEY = ""  # automatic fallback if primary Kernel ends or fails
 APPROVAL_SECRET = ""        # any long random string, protects the approve endpoint
+JWT_SECRET_KEY = ""         # secret key for signing user authentication JWT tokens

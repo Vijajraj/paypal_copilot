@@ -5,18 +5,13 @@
 # ==============================================================================
 
 version: 2
-framework: vite
-rootDirectory: frontend
-buildCommand: npm run build
-outputDirectory: dist
-installCommand: npm install
-
-# Environment variables to configure in Vercel Project Settings:
-# - VITE_API_URL: URL of your deployed Render backend (e.g. https://paypal-copilot-backend.onrender.com)
-# - APPROVAL_SECRET: Authorization token for merchant approval gate
+buildCommand: cd frontend && npm run build
+outputDirectory: frontend/dist
+installCommand: cd frontend && npm install
 
 rewrites:
-  # Proxy API requests to your deployed Render backend
+  - source: /disputes
+    destination: https://paypal-copilot-backend.onrender.com/disputes
   - source: /disputes/:path*
     destination: https://paypal-copilot-backend.onrender.com/disputes/:path*
   - source: /sync
@@ -25,9 +20,16 @@ rewrites:
     destination: https://paypal-copilot-backend.onrender.com/timeline
   - source: /audit
     destination: https://paypal-copilot-backend.onrender.com/audit
+  - source: /health
+    destination: https://paypal-copilot-backend.onrender.com/health
+  - source: /health/:path*
+    destination: https://paypal-copilot-backend.onrender.com/health/:path*
+  - source: /restock/:path*
+    destination: https://paypal-copilot-backend.onrender.com/restock/:path*
+  - source: /webhooks/:path*
+    destination: https://paypal-copilot-backend.onrender.com/webhooks/:path*
   - source: /api/:path*
     destination: https://paypal-copilot-backend.onrender.com/api/:path*
-  # Single Page Application (SPA) routing fallback
   - source: /(.*)
     destination: /index.html
 
