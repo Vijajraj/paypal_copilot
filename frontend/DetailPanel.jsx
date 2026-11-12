@@ -32,7 +32,8 @@ export default function DetailPanel({
   onReject,
   onSaveEvidence,
   onRedraft,
-  onClose
+  onClose,
+  currentUser
 }) {
   if (!dispute) return null;
 
@@ -54,11 +55,17 @@ export default function DetailPanel({
   const [merchantNotes, setMerchantNotes] = useState('');
   const [isRedrafting, setIsRedrafting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
-  const [approverName, setApproverName] = useState('Authorized Seller Representative');
+  const [approverName, setApproverName] = useState(currentUser?.full_name || 'Authorized Seller Representative');
   const [approvalSecret, setApprovalSecret] = useState(Config.APPROVAL_SECRET);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.full_name) {
+      setApproverName(currentUser.full_name);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     setEvidenceText(dispute.evidence_draft?.text || dispute.ai_drafted_evidence || '');
@@ -810,26 +817,65 @@ export default function DetailPanel({
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-                <button
-                  data-testid="btn-approve-submit"
-                  onClick={() => setShowApproveModal(true)}
-                  className="btn btn-paypal-gold"
-                  style={{ flex: 1, padding: '13px 24px', fontSize: '0.95rem' }}
-                >
-                  <ShieldCheck size={20} />
-                  Approve & Submit to PayPal
-                </button>
+              <div>
+                {currentUser?.role === 'viewer' && (
+                  <div style={{
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    marginBottom: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontSize: '0.84rem',
+                    color: '#475569'
+                  }}>
+                    <Lock size={18} color="#64748b" />
+                    <div>
+                      <strong style={{ color: '#0f172a' }}>Read-Only Observer Mode ({currentUser.full_name}):</strong>
+                      <span style={{ marginLeft: '4px' }}>
+                        Accounts with the Viewer role cannot submit dispute responses to PayPal. Switch to Admin or Dispute Specialist in the navigation bar to enable submission.
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                  <button
+                    data-testid="btn-approve-submit"
+                    disabled={currentUser?.role === 'viewer'}
+                    onClick={() => setShowApproveModal(true)}
+                    className="btn btn-paypal-gold"
+                    style={{
+                      flex: 1,
+                      padding: '13px 24px',
+                      fontSize: '0.95rem',
+                      opacity: currentUser?.role === 'viewer' ? 0.5 : 1,
+                      cursor: currentUser?.role === 'viewer' ? 'not-allowed' : 'pointer'
+                    }}
+                    title={currentUser?.role === 'viewer' ? "Viewer role is read-only. Switch role in navigation bar to approve." : "Authorize & submit evidence statement to PayPal"}
+                  >
+                    <ShieldCheck size={20} />
+                    Approve & Submit to PayPal
+                  </button>
 
-                <button
-                  data-testid="btn-concede-refund"
-                  onClick={() => setShowRejectModal(true)}
-                  className="btn btn-paypal-danger"
-                  style={{ padding: '13px 20px', fontSize: '0.9rem' }}
-                >
-                  <XCircle size={18} />
-                  Accept Claim / Refund
-                </button>
+                  <button
+                    data-testid="btn-concede-refund"
+                    disabled={currentUser?.role === 'viewer'}
+                    onClick={() => setShowRejectModal(true)}
+                    className="btn btn-paypal-danger"
+                    style={{
+                      padding: '13px 20px',
+                      fontSize: '0.9rem',
+                      opacity: currentUser?.role === 'viewer' ? 0.5 : 1,
+                      cursor: currentUser?.role === 'viewer' ? 'not-allowed' : 'pointer'
+                    }}
+                    title={currentUser?.role === 'viewer' ? "Viewer role is read-only." : "Accept claim & issue refund"}
+                  >
+                    <XCircle size={18} />
+                    Accept Claim / Refund
+                  </button>
+                </div>
               </div>
             )}
           </div>

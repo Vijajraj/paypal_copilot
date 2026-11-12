@@ -9,7 +9,9 @@ import {
   Cpu,
   Database,
   CheckCircle2,
-  Lock
+  Lock,
+  User,
+  ChevronDown
 } from 'lucide-react';
 
 export default function Navbar({
@@ -23,7 +25,9 @@ export default function Navbar({
   isMockMode,
   setIsMockMode,
   autoSync,
-  setAutoSync
+  setAutoSync,
+  currentUser,
+  onOpenAuth
 }) {
   return (
     <header role="banner" style={{ marginBottom: '24px' }}>
@@ -211,9 +215,15 @@ export default function Navbar({
             <button
               data-testid="btn-simulate-case"
               onClick={onOpenSimulate}
+              disabled={currentUser?.role === 'viewer'}
               className="btn btn-paypal-gold"
-              style={{ padding: '7px 16px', fontSize: '0.8rem' }}
-              title="Simulate incoming PayPal dispute webhook"
+              style={{
+                padding: '7px 16px',
+                fontSize: '0.8rem',
+                opacity: currentUser?.role === 'viewer' ? 0.5 : 1,
+                cursor: currentUser?.role === 'viewer' ? 'not-allowed' : 'pointer'
+              }}
+              title={currentUser?.role === 'viewer' ? "Dispute simulation is restricted to Admins and Dispute Specialists." : "Simulate incoming PayPal dispute webhook"}
             >
               <Sparkles size={14} />
               Simulate Case
@@ -273,29 +283,55 @@ export default function Navbar({
               {isMockMode ? 'Mock Offline' : 'Live Sandbox'}
             </button>
 
-            {/* Profile Avatar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              borderLeft: '1px solid rgba(255, 255, 255, 0.15)',
-              paddingLeft: '12px',
-              marginLeft: '2px'
-            }}>
+            {/* Interactive User Profile & Role Switcher Button */}
+            <button
+              data-testid="btn-user-profile"
+              onClick={onOpenAuth}
+              style={{
+                background: 'rgba(255, 255, 255, 0.12)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 'var(--radius-pill)',
+                padding: '4px 10px 4px 6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                color: '#ffffff',
+                transition: 'all 0.15s ease'
+              }}
+              title={`Logged in as ${currentUser?.full_name || 'Guest'} (${currentUser?.role || 'Sign In'}) - Click to switch role or sign in`}
+            >
               <div style={{
-                width: '32px',
-                height: '32px',
+                width: '28px',
+                height: '28px',
                 borderRadius: '50%',
-                background: '#0070ba',
+                background: currentUser?.role === 'admin' ? '#7c3aed' : currentUser?.role === 'analyst' ? '#0070ba' : '#475569',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 800,
-                fontSize: '0.82rem',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                fontSize: '0.78rem',
+                color: '#ffffff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
               }}>
-                M
+                {(currentUser?.full_name || 'U').charAt(0)}
               </div>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, lineHeight: 1.1 }}>
+                  {currentUser?.full_name ? currentUser.full_name.split(' ')[0] : 'Sign In'}
+                </span>
+                <span style={{
+                  fontSize: '0.64rem',
+                  fontWeight: 600,
+                  opacity: 0.85,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em'
+                }}>
+                  {currentUser?.role || 'Guest'}
+                </span>
+              </div>
+              <ChevronDown size={12} style={{ opacity: 0.7 }} />
+            </button>
           </div>
         </div>
       </div>

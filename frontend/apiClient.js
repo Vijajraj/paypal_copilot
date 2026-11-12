@@ -4,6 +4,49 @@ import { initialMockDisputes } from './initialMockData.js';
 const STORAGE_KEY_DISPUTES = 'paypal_copilot_disputes_v1';
 const STORAGE_KEY_AUDIT = 'paypal_copilot_audit_v1';
 const STORAGE_KEY_RESTOCK = 'paypal_copilot_restock_v1';
+const STORAGE_KEY_AUTH_TOKEN = 'paypal_copilot_auth_token_v1';
+const STORAGE_KEY_AUTH_USER = 'paypal_copilot_auth_user_v1';
+
+// Authentication storage helpers
+export function getAuthToken() {
+  try {
+    return localStorage.getItem(STORAGE_KEY_AUTH_TOKEN) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+export function setAuthToken(token) {
+  try {
+    if (token) localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, token);
+    else localStorage.removeItem(STORAGE_KEY_AUTH_TOKEN);
+  } catch (e) {}
+}
+
+export function getAuthUser() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_AUTH_USER);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function setAuthUser(user) {
+  try {
+    if (user) localStorage.setItem(STORAGE_KEY_AUTH_USER, JSON.stringify(user));
+    else localStorage.removeItem(STORAGE_KEY_AUTH_USER);
+  } catch (e) {}
+}
+
+export function authHeaders(extraHeaders = {}) {
+  const token = getAuthToken();
+  const headers = { ...extraHeaders };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 // Application Configuration (Public framework prefix removed to prevent client exposure)
 export const Config = {
@@ -266,7 +309,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/disputes/${encodeURIComponent(id)}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ approver_id: approverId, approval_secret: approvalSecret })
       });
       if (res.ok) {
@@ -563,5 +606,158 @@ export const api = {
     const list = getStoredDisputes();
     const matched = list.find(d => (d.dispute_id === id || d.id === id));
     return { success: true, dispute: normalizeDispute(matched) };
+  },
+
+  // ---------------- Authentication & RBAC API ----------------
+  async login(email, password) {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAuthToken(data.access_token);
+        setAuthUser(data.user);
+        return { success: true, ...data };
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Invalid email or password');
+      }
+    } catch (e) {
+      if (e.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+      // Offline fallback: match demo credentials
+      const demoUsers = this.getFallbackDemoUsers();
+      const matched = demoUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
+      if (matched && password === matched.password) {
+        const userObj = {
+          id: matched.id,
+          email: matched.email,
+          full_name: matched.name,
+          role: matched.role,
+          created_at: new Date().toISOString()
+        };
+        const mockToken = `mock_jwt_token_${matched.role}_${Date.now()}`;
+        setAuthToken(mockToken);
+        setAuthUser(userObj);
+        return { success: true, access_token: mockToken, user: userObj };
+      }
+      throw new Error('Invalid email or password.');
+    }
+  },
+
+  async register(email, password, fullName, role = 'analyst') {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, full_name: fullName, role })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAuthToken(data.access_token);
+        setAuthUser(data.user);
+        return { success: true, ...data };
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Registration failed');
+      }
+    } catch (e) {
+      if (e.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+      // Offline fallback
+      const userObj = {
+        id: `usr_${Math.random().toString(36).slice(2, 10)}`,
+        email: email.trim().toLowerCase(),
+        full_name: fullName.trim(),
+        role: role || 'analyst',
+        created_at: new Date().toISOString()
+      };
+      const mockToken = `mock_jwt_token_${role}_${Date.now()}`;
+      setAuthToken(mockToken);
+      setAuthUser(userObj);
+      return { success: true, access_token: mockToken, user: userObj };
+    }
+  },
+
+  async getMe() {
+    const token = getAuthToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: authHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setAuthUser(data.user);
+          return data.user;
+        }
+      } else if (res.status === 401) {
+        setAuthToken(null);
+        setAuthUser(null);
+        return null;
+      }
+    } catch (e) {}
+    return getAuthUser();
+  },
+
+  async getDemoUsers() {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/demo-users`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.demo_accounts) return data.demo_accounts;
+      }
+    } catch (e) {}
+    return this.getFallbackDemoUsers();
+  },
+
+  getFallbackDemoUsers() {
+    return [
+      {
+        id: 'usr_admin_001',
+        role: 'admin',
+        label: 'Lead Admin',
+        email: 'admin@paypalcopilot.com',
+        password: 'Admin123!',
+        name: 'Sarah Jenkins',
+        permissions: 'Full system control, dispute approvals, audit access, simulate disputes'
+      },
+      {
+        id: 'usr_analyst_002',
+        role: 'analyst',
+        label: 'Dispute Specialist',
+        email: 'analyst@paypalcopilot.com',
+        password: 'Analyst123!',
+        name: 'Alex Rivera',
+        permissions: 'Dispute reviews, AI redrafting, evidence submissions, audit trail'
+      },
+      {
+        id: 'usr_viewer_003',
+        role: 'viewer',
+        label: 'Audit Observer',
+        email: 'viewer@paypalcopilot.com',
+        password: 'Viewer123!',
+        name: 'Morgan Chen',
+        permissions: 'Read-only access: view disputes & AI drafts without approval powers'
+      }
+    ];
+  },
+
+  logout() {
+    try {
+      fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: authHeaders()
+      }).catch(() => {});
+    } catch (e) {}
+    setAuthToken(null);
+    setAuthUser(null);
+    return { success: true };
   }
 };
