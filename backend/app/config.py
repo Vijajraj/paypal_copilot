@@ -45,6 +45,14 @@ CHANNEL3_SPEND_LIMIT_USD = 500.00
 ZAPIER_DISPUTE_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/paypal-slack-demo"
 ZAPIER_AUDIT_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/audit-sheets-demo"
 
+# ---------- Vasool Integration & Security (Section 11) ----------
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get("ALLOWED_ORIGINS", f"{FRONTEND_ORIGIN},https://paypalcopilot.vercel.app,http://localhost:5173,http://127.0.0.1:5173").split(",") if o.strip()
+]
+APPROVAL_TTL_SECONDS = int(os.environ.get("APPROVAL_TTL_SECONDS", "600"))
+SERVICE_TOKEN = os.environ.get("SERVICE_TOKEN", "vasool-service-secret-token")
+APPROVALS_VERIFY_KEY = os.environ.get("APPROVALS_VERIFY_KEY", "vasool-approvals-verify-key")
+
 class _SettingsProxy:
     CHANNEL3_SPEND_LIMIT_USD = CHANNEL3_SPEND_LIMIT_USD
     ZAPIER_DISPUTE_WEBHOOK_URL = ZAPIER_DISPUTE_WEBHOOK_URL
@@ -52,5 +60,8 @@ class _SettingsProxy:
     PAYPAL_BASE_URL = PAYPAL_BASE_URL
     PAYPAL_CLIENT_ID = "mock_paypal_client_id"
     PAYPAL_CLIENT_SECRET = "mock_paypal_secret"
+    APPROVAL_TTL_SECONDS = APPROVAL_TTL_SECONDS
+    SERVICE_TOKEN = SERVICE_TOKEN
+    APPROVALS_VERIFY_KEY = APPROVALS_VERIFY_KEY
 
 settings = _SettingsProxy()

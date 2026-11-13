@@ -7,6 +7,16 @@ from ..models import AuditEntry, Actor
 
 AUDIT_PERSIST_FILE = Path(__file__).resolve().parent.parent / "local_audit.json"
 
+def canonical_json(obj: Dict[str, Any]) -> bytes:
+    """Canonical JSON serialization per Vasool spec: sorted keys, UTF-8, no extra whitespace."""
+    return json.dumps(obj, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+
+def compute_canonical_entry_hash(prev_hash: str, body: Dict[str, Any]) -> str:
+    """Computes SHA256(prev_hash || canonical_json({seq, ts, actor, event_type, ref_id, payload}))"""
+    body_bytes = canonical_json(body)
+    data = prev_hash.encode('utf-8') + body_bytes
+    return hashlib.sha256(data).hexdigest()
+
 def compute_entry_hash(
     entry_id: str,
     dispute_id: str,
@@ -17,7 +27,7 @@ def compute_entry_hash(
     details: str,
     prev_hash: str
 ) -> str:
-    """Computes an immutable SHA-256 block hash for an audit ledger record."""
+    """Legacy SHA-256 block hash for backward compatibility."""
     payload = f"{entry_id}|{dispute_id or ''}|{timestamp}|{actor_type}:{actor_id}|{action}|{details}|{prev_hash}"
     return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
@@ -108,23 +118,29 @@ class CryptographicAuditLedger:
         actor_type: str,
         actor_id: str,
         action: str,
-        details: str
+        details: str,
+        payload: Optional[Dict[str, Any]] = None
     ) -> AuditEntry:
-        """Appends a new cryptographically chained block to the audit ledger."""
+        """Appends a new cryptographically chained block to the audit ledger following Vasool rules."""
         now = datetime.now(timezone.utc).isoformat()
+        seq = len(self._entries) + 1
         entry_id = f"AUD-{len(self._entries) + 10001}"
         prev_hash = self.get_latest_hash()
         
-        entry_hash = compute_entry_hash(
-            entry_id=entry_id,
-            dispute_id=dispute_id,
-            timestamp=now,
-            actor_type=actor_type,
-            actor_id=actor_id,
-            action=action,
-            details=details,
-            prev_hash=prev_hash
-        )
+        actor_dict = {"id": actor_id, "type": actor_type}
+        payload_dict = dict(payload) if payload else {"details": details}
+        if "details" not in payload_dict:
+            payload_dict["details"] = details
+
+        canonical_body = {
+            "actor": actor_dict,
+            "event_type": action,
+            "payload": payload_dict,
+            "ref_id": dispute_id or "",
+            "seq": seq,
+            "ts": now
+        }
+        entry_hash = compute_canonical_entry_hash(prev_hash, canonical_body)
 
         entry = AuditEntry(
             entryId=entry_id,
@@ -134,7 +150,13 @@ class CryptographicAuditLedger:
             action=action,
             details=details,
             hash=entry_hash,
-            prevHash=prev_hash
+            prevHash=prev_hash,
+            seq=seq,
+            ts=now,
+            event_type=action,
+            ref_id=dispute_id or "",
+            payload=payload_dict,
+            rule="vasool_v1"
         )
 
         self._entries.append(entry)
@@ -165,17 +187,34 @@ class CryptographicAuditLedger:
                     "error": f"Broken chain link at index {idx}: expected prevHash {expected_prev}, got {entry.prevHash}"
                 }
             
-            # Recalculate hash
-            computed = compute_entry_hash(
-                entry_id=entry.entryId,
-                dispute_id=entry.disputeId or "",
-                timestamp=entry.timestamp,
-                actor_type=entry.actor.type,
-                actor_id=entry.actor.id,
-                action=entry.action,
-                details=entry.details,
-                prev_hash=entry.prevHash
-            )
+            # Recalculate hash depending on rule
+            if entry.seq is not None and (entry.rule == "vasool_v1" or entry.payload is not None):
+                actor_dict = {
+                    "id": entry.actor.id if hasattr(entry.actor, "id") else entry.actor.get("id"),
+                    "type": entry.actor.type if hasattr(entry.actor, "type") else entry.actor.get("type")
+                }
+                canonical_body = {
+                    "actor": actor_dict,
+                    "event_type": entry.event_type or entry.action,
+                    "payload": entry.payload,
+                    "ref_id": entry.ref_id if entry.ref_id is not None else (entry.disputeId or ""),
+                    "seq": entry.seq,
+                    "ts": entry.ts or entry.timestamp
+                }
+                computed = compute_canonical_entry_hash(entry.prevHash, canonical_body)
+            else:
+                actor_type = entry.actor.type if hasattr(entry.actor, "type") else entry.actor.get("type")
+                actor_id = entry.actor.id if hasattr(entry.actor, "id") else entry.actor.get("id")
+                computed = compute_entry_hash(
+                    entry_id=entry.entryId,
+                    dispute_id=entry.disputeId or "",
+                    timestamp=entry.timestamp,
+                    actor_type=actor_type,
+                    actor_id=actor_id,
+                    action=entry.action,
+                    details=entry.details,
+                    prev_hash=entry.prevHash
+                )
 
             if computed != entry.hash:
                 return False, {

@@ -1,3 +1,5 @@
+import hashlib
+import json
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 
@@ -58,6 +60,38 @@ class DisputeContract(BaseModel):
     win_score_breakdown: Optional[Dict[str, Any]] = None
     similar_cases: Optional[List[Dict[str, Any]]] = None
 
+    # Vasool Additive Fields (Section 6)
+    case_id: Optional[str] = None
+    source: Optional[str] = "vasool_voice"
+    transcript_ref: Optional[str] = None
+    draft_hash: Optional[str] = None
+    approval: Optional[Dict[str, Any]] = None
+
+    def compute_draft_hash(self) -> str:
+        """Computes SHA-256 of canonical evidence_draft per Vasool specification."""
+        raw_proofs = []
+        for p in self.evidence_draft.proofs:
+            if hasattr(p, "model_dump"):
+                raw_proofs.append(p.model_dump())
+            elif hasattr(p, "dict"):
+                raw_proofs.append(p.dict())
+            elif isinstance(p, dict):
+                raw_proofs.append(p)
+            else:
+                raw_proofs.append(str(p))
+
+        canonical_obj = {
+            "text": self.evidence_draft.text or "",
+            "proofs": raw_proofs
+        }
+        canonical_bytes = json.dumps(
+            canonical_obj,
+            sort_keys=True,
+            separators=(',', ':'),
+            ensure_ascii=False
+        ).encode('utf-8')
+        return hashlib.sha256(canonical_bytes).hexdigest()
+
     def populate_compatibility_fields(self):
         """Populates bidirectional compatibility fields for Person B's frontend."""
         if not self.dispute_id:
@@ -107,6 +141,8 @@ class DisputeContract(BaseModel):
                 "kernel_audit_id": f"KERNEL-{self.order.shipping.carrier}-9921",
                 "delivery_address_verified": True
             }
+        if not self.draft_hash:
+            self.draft_hash = self.compute_draft_hash()
 
 class EvidenceUpdateRequest(BaseModel):
     evidence_text: Optional[str] = None
@@ -116,9 +152,59 @@ class EvidenceUpdateRequest(BaseModel):
 class RedraftRequest(BaseModel):
     merchant_notes: Optional[str] = None
 
+class ApprovalPayload(BaseModel):
+    id: Optional[str] = None
+    action: str = "submit_evidence"
+    amount: Optional[Amount] = None
+    channel: str = "voice"  # "voice" or "ui"
+    approved_by: str
+    readback_hash: Optional[str] = None
+    expires_at: Optional[str] = None
+    draft_hash: Optional[str] = None
+
 class ApproveRequest(BaseModel):
     approver_id: Optional[str] = "Authorized Seller Representative"
     approval_secret: Optional[str] = None
+    # Vasool Additive Fields (Section 6 & 8)
+    approval: Optional[Dict[str, Any]] = None
+    approval_token: Optional[str] = None
+    channel: Optional[str] = None
+    readback_hash: Optional[str] = None
+    action: Optional[str] = None
+    amount: Optional[Amount] = None
+    expires_at: Optional[str] = None
+
+class IntakeRequest(BaseModel):
+    case_id: str
+    order_reference: str
+    claim_type: str = "ITEM_NOT_RECEIVED"
+    transcript_ref: Optional[str] = None
+    amount: Optional[Amount] = None
+    customer_name: Optional[str] = None
+    source: Optional[str] = "vasool_voice"
+    items: Optional[List[OrderItem]] = None
+    tracking_number: Optional[str] = None
+    carrier: Optional[str] = "FEDEX"
+    delivery_status: Optional[str] = "DELIVERED"
+    address_summary: Optional[str] = "Customer Address, Verified"
+
+class ProposalResponse(BaseModel):
+    proposal_id: str
+    dispute_id: str
+    draft_hash: str
+    action: str = "submit_evidence"
+    amount: Amount
+    status: str = "pending_approval"
+    expires_at: str
+
+class BriefResponse(BaseModel):
+    dispute_id: str
+    reason: str
+    amount: Amount
+    deadline: str
+    win_score: int
+    one_line_recommendation: str
+    spoken_briefing: str
 
 class RejectRequest(BaseModel):
     reason: str
@@ -143,6 +229,13 @@ class AuditEntry(BaseModel):
     details: str
     hash: str
     prevHash: str
+    # Vasool Additive Ledger Fields (Section 9)
+    seq: Optional[int] = None
+    ts: Optional[str] = None
+    event_type: Optional[str] = None
+    ref_id: Optional[str] = None
+    payload: Optional[Dict[str, Any]] = None
+    rule: Optional[str] = None
 
 class RestockItem(BaseModel):
     id: str
